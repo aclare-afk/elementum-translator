@@ -1,0 +1,22 @@
+[
+  {
+    "sys_id": "0a52d3dcd7011200f2d224837e610302",
+    "name": "Service Desk",
+    "email": "service.desk@example.com"
+  },
+  {
+    "sys_id": "287ebd7da9fe198100f92cc8d1d2154e",
+    "name": "Database",
+    "email": "dba@example.com"
+  },
+  {
+    "sys_id": "287ee0eda9fe198100ead061f1be3417",
+    "name": "Network",
+    "email": "network@example.com"
+  },
+  {
+    "sys_id": "4a0e3e1dd7301200b3d4b1f5a96190b1",
+    "name": "Payroll Support",
+    "email": "payroll.support@example.com"
+  }
+]

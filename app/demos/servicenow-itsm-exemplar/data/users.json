@@ -1,0 +1,32 @@
+[
+  {
+    "sys_id": "6816f79cc0a8016401c5a33be04be441",
+    "user_name": "alice.example",
+    "name": "Alice Example",
+    "email": "alice.example@example.com"
+  },
+  {
+    "sys_id": "7c1eab3f7b1010102df1d2a7bdf6a76e",
+    "user_name": "bob.sample",
+    "name": "Bob Sample",
+    "email": "bob.sample@example.com"
+  },
+  {
+    "sys_id": "9d2e4c12a0b1c23456789abcdef01234",
+    "user_name": "chris.demo",
+    "name": "Chris Demo",
+    "email": "chris.demo@example.com"
+  },
+  {
+    "sys_id": "681b365ec0a80164000fb0b05854a0cd",
+    "user_name": "admin",
+    "name": "System Administrator",
+    "email": "admin@example.com"
+  },
+  {
+    "sys_id": "a3c8e201f4b7c92345678abcdef01122",
+    "user_name": "dana.acme",
+    "name": "Dana Acme",
+    "email": "dana@acmecorp.example.com"
+  }
+]

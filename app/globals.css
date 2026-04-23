@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Root reset + neutral defaults. Platform chrome components override
+   typography and palette via inline styles / CSS variables scoped to
+   the mock layout, so multiple platforms can coexist in the same app. */
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f6f7f8;
+  color: #1f2328;
+}
+
+* {
+  box-sizing: border-box;
+}

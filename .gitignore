@@ -1,0 +1,12 @@
+node_modules
+.next
+.vercel
+.env
+.env.local
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Stray dir from scaffold creation — can be removed safely.
+/apps
