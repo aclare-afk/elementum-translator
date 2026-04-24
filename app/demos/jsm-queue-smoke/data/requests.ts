@@ -251,7 +251,10 @@ export const seedRequests: RequestSeed[] = [
     summary: "Email rules stopped working after migration to new domain",
     description:
       "My filter rules that route Jira notifications to a subfolder aren't firing since we moved to @acmecorp.com. Rules look identical.",
-    status: { name: "Waiting for customer", category: "warning" },
+    // "Waiting for customer" lives in the indeterminate category in real
+    // Jira — there's no "warning" status category. The SLA chip handles the
+    // amber styling separately when paused.
+    status: { name: "Waiting for customer", category: "indeterminate" },
     priority: "Medium",
     reporter: jane,
     assignee: marcus,
