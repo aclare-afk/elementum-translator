@@ -73,21 +73,29 @@ Required files in every new mock:
 app/demos/<slug>/
 ├── layout.tsx        # wraps this mock in platform chrome (imports from components/platforms/<name>/)
 ├── page.tsx          # landing page for this mock; links to the screens
-├── README.md         # SE demo script: URLs, talking points, what's fake vs real
-├── incidents/        # (or whatever screens the scenario needs)
+├── README.md         # SE demo script: URLs, talking points, API contract, what's fake vs real
+├── _lib/
+│   └── store.ts      # globalThis-backed in-memory store. Seeds at cold start, mutable via API
+├── incidents/        # (or whatever screens the scenario needs) — pages READ from _lib/store.ts
 │   └── page.tsx
 ├── api/              # Next.js route handlers; paths must match the real platform's paths
-│   └── ...
-└── data/             # seed JSON; no real customer data ever
-    └── *.json
+│   └── ...           # MUST include at least one POST that writes to _lib/store.ts
+└── data/             # seed data; no real customer data ever
+    └── *.json or *.ts
 ```
 
 Hard rules:
 - **UI**: Always wrap in the platform's chrome (import from `components/platforms/<name>/`). A ServiceNow mock MUST use `<Nav />` and `<Sidebar />` from `components/platforms/servicenow/` so it actually looks like ServiceNow. Don't build generic-looking screens and call them a platform mock.
 - **API paths**: Must match the real platform's URL shape exactly. ServiceNow Table API is `/api/now/table/{table_name}` — so the route file goes at `app/demos/<slug>/api/now/table/[name]/route.ts`. Do not invent a cleaner URL.
 - **Response envelope**: Match the real platform's response shape byte-for-byte where documented. ServiceNow returns `{ "result": [...] }` — your mock returns the same.
+- **Every mock must be interactive**: Elementum automations will `POST` to it. At minimum, expose the real platform's record-create endpoint backed by `_lib/store.ts`. The UI pages (agent queue, record detail, portal, whatever the platform's equivalent is) must be Server Components that read from the same store so records created via the API appear in the UI alongside seeds without the SE refreshing anything.
+- **`_mockViewUrl` return field**: Every create/update response adds one non-standard top-level field, `_mockViewUrl`, whose value is a URL back into the mock UI at a detail page for the new record. Document it in the mock's README as demo-only. In the real-platform integration the SE swaps that for the real platform's `_links.web` / `self` / equivalent. This is the single lever that makes the "Elementum returns a clickable link to the user" flow work during demos.
+- **Stateful store**: Use `globalThis.__<slug>Store` so mutations persist across warm function invocations. Re-seed on cold start from the data files — never try to persist to disk. (If durable state becomes necessary, swap the store for Vercel KV; don't roll your own filesystem persistence.)
 - **Seed data**: Fake only. Never real customer names, real phone numbers, real emails (except `@example.com`). Use obviously-fake names like "Acme Corp", "Initech", or "Wayne Enterprises."
 - **Branding**: Include a subtle `[DEMO]` banner at the top of every mock screen so nobody confuses the mock for a real instance in a screenshot.
+- **Field-name casing**: Elementum fields are Title Case with spaces (`"Issue Key"`, `"PR Number"`). Any field name you tell the SE to use in `response_fields` of their `api_task` follows the same rule. snake_case and camelCase get rejected by Elementum.
+
+Reference implementation: `app/demos/jsm-queue-smoke/` is the canonical example of all of the above — read that mock's `_lib/store.ts`, route handlers under `api/rest/servicedeskapi/request/`, and README before building a new platform's write-APIs.
 
 ### Step 5 — Register as the featured demo
 
