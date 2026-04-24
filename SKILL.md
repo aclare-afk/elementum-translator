@@ -89,7 +89,19 @@ Hard rules:
 - **Seed data**: Fake only. Never real customer names, real phone numbers, real emails (except `@example.com`). Use obviously-fake names like "Acme Corp", "Initech", or "Wayne Enterprises."
 - **Branding**: Include a subtle `[DEMO]` banner at the top of every mock screen so nobody confuses the mock for a real instance in a screenshot.
 
-### Step 5 — Commit
+### Step 5 — Register as the featured demo
+
+Before committing, update `app/page.tsx`:
+
+1. **Add the new demo** to the top of the `demos` array (the one the SE just asked for).
+2. **Mark it `featured: true`** — this is the mock the root URL should surface for whichever customer the SE is about to show.
+3. **Clear `featured`** from whichever entry had it before (there must be exactly one `featured: true` across the whole registry).
+
+The landing page renders the featured demo as a prominent hero card with a single "Open demo →" button, and the rest as a smaller list below. This matters: the SE shares their Vercel URL with a customer, and the customer should land on the demo we just built — not a gallery of unrelated platforms.
+
+If the SE explicitly asks to keep some other demo featured (e.g., they're still finishing a call with a different customer), skip step 2 — just add the new demo to the array without `featured`.
+
+### Step 6 — Commit
 
 Use the following git workflow. **Do not squash or rewrite — always a fresh branch and a fresh commit.**
 
@@ -106,7 +118,7 @@ Commit message format:
 - First line: `demo(<platform>): <slug> — <scenario summary>`
 - Body: bullet list of screens + endpoints + seed data, and any `[REAL-WITH-CAVEAT]` flags from Step 2
 
-### Step 6 — Handoff
+### Step 7 — Handoff
 
 Return to the SE:
 1. The branch name and PR URL
@@ -121,7 +133,7 @@ If the SE wants a platform we don't have a `PLATFORMS/<name>.md` for yet:
 1. Start by creating `PLATFORMS/<name>.md` following the template in `PLATFORMS/README.md`.
 2. Source the content from the vendor's official developer docs via WebFetch. Do not hallucinate API shapes — quote + link the sources.
 3. Populate at minimum: CAPABILITIES, API SURFACE, VISUAL IDENTITY, AUTH, KNOWN-IMPOSSIBLE, HYGIENE.
-4. Then proceed with the 6-step protocol.
+4. Then proceed with the 7-step protocol.
 
 When you add a new platform, also add shared chrome under `components/platforms/<name>/` (at minimum a `Nav`, `Sidebar` or equivalent, `design-tokens.ts`). Every mock of that platform reuses these.
 
