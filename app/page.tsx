@@ -13,6 +13,22 @@ const demos = [
       "L1 intake → assignment → resolution. Mock Table API for incident records plus matching UI.",
     status: "example" as const,
   },
+  {
+    slug: "sap-me5a-smoke",
+    platform: "SAP",
+    name: "ME5A — List Display of Purchase Requisitions",
+    scenario:
+      "SAP GUI procurement transaction with selection screen, ALV grid, status dots, and 6 seed PRs. Exercises the shared SAP chrome.",
+    status: "smoke" as const,
+  },
+  {
+    slug: "amazon-punchout-smoke",
+    platform: "Amazon Business",
+    name: "Punchout Storefront",
+    scenario:
+      "Storefront with punchout session banner, 6 business-catalog products, Add-to-Cart, and Submit-to-Elementum cart return. Exercises the shared Amazon chrome.",
+    status: "smoke" as const,
+  },
 ];
 
 export default function Home() {
@@ -56,6 +72,11 @@ export default function Home() {
                     {d.status === "example" && (
                       <span className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
                         example
+                      </span>
+                    )}
+                    {d.status === "smoke" && (
+                      <span className="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
+                        smoke
                       </span>
                     )}
                   </div>
