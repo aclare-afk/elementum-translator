@@ -1,22 +1,27 @@
-// In-memory JSM-ish store for the jsm-queue-smoke mock.
+// Durable JSM-ish store for the jsm-queue-smoke mock.
 //
 // `_lib` is underscore-prefixed so Next.js does not route it — pages and route
 // handlers import from here, but there is no public URL that resolves to it.
 //
-// State lives on globalThis so mutations from POST /rest/servicedeskapi/request
-// are visible to the SSR queue page and portal `My Requests` list within the
-// same warm function instance. Cold starts re-seed from `data/requests.ts` —
-// that's intentional: a fresh demo session should see the same seeds every
-// time, and state never leaks between customer demos.
+// Backing:
+//   1. Vercel KV (Upstash Redis under the hood) when the KV_* / UPSTASH_*
+//      env vars are set. This is what production uses. State survives cold
+//      starts and is shared across different serverless function instances —
+//      which is the whole reason we moved off globalThis. The POST that
+//      creates ITH-421 and the portal page that renders ITH-421 can now
+//      land on different Vercel function instances and still agree.
+//   2. globalThis fallback when no KV is configured. Keeps `npm run dev`
+//      working locally without forcing the SE to provision KV just to poke
+//      at the mock. Same semantics as the original in-memory store: seeds
+//      on cold start, mutations persist within a warm instance, never
+//      across instances.
 //
-// IMPORTANT: Vercel serverless splits different API endpoints into different
-// function instances. globalThis works across warm invocations of the SAME
-// function, not across different routes. For a demo where one automation
-// creates a request and the SE immediately clicks through to the mock UI, the
-// hot-path hits the same render function and this works. For a durable flow,
-// swap this module for a KV-backed implementation (see the `ui/featured-demo`
-// follow-up PR for the KV helper pattern).
+// Shape: a single key `jsm-queue-smoke:requests:v1` holds the full
+// StoredRequest[]. Writes are read-modify-write — fine for the demo because
+// there's one SE firing one automation at a time. If a customer demo ever
+// surfaces concurrent-write bugs, swap to a sorted set keyed by issue id.
 
+import { Redis } from "@upstash/redis";
 import { seedRequests, type RequestSeed } from "../data/requests";
 
 export type StoredRequest = RequestSeed & {
@@ -34,45 +39,108 @@ export type StoredRequest = RequestSeed & {
   requestFieldValues?: Record<string, unknown>;
 };
 
-type Store = {
-  requests: StoredRequest[];
-};
+// Versioned key so we can rev the schema without stepping on old data. Bump
+// the `v<n>` suffix if the StoredRequest shape changes in a breaking way.
+const STORE_KEY = "jsm-queue-smoke:requests:v1";
 
-// Namespace on globalThis so multiple mocks in the same deploy don't collide.
-declare global {
-  // eslint-disable-next-line no-var
-  var __jsmQueueSmokeStore: Store | undefined;
+// ---- KV client -------------------------------------------------------------
+
+// Vercel's "KV database" marketplace integration sets KV_REST_API_URL and
+// KV_REST_API_TOKEN. Bringing your own Upstash Redis sets
+// UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Accept both so the
+// same code works regardless of how the SE provisioned the store.
+function kvEnabled(): boolean {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  return Boolean(url && token);
 }
 
-function getStore(): Store {
+let redisSingleton: Redis | null = null;
+function getRedis(): Redis {
+  if (redisSingleton) return redisSingleton;
+  redisSingleton = new Redis({
+    url: (process.env.UPSTASH_REDIS_REST_URL ??
+      process.env.KV_REST_API_URL)!,
+    token: (process.env.UPSTASH_REDIS_REST_TOKEN ??
+      process.env.KV_REST_API_TOKEN)!,
+  });
+  return redisSingleton;
+}
+
+// ---- globalThis fallback for local dev -------------------------------------
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __jsmQueueSmokeStore: StoredRequest[] | undefined;
+}
+
+// ---- Seed ------------------------------------------------------------------
+
+function seedInitial(): StoredRequest[] {
+  // Deep clone so mutations don't bleed into the imported seeds.
+  const cloned = JSON.parse(JSON.stringify(seedRequests)) as RequestSeed[];
+  const now = new Date();
+  return cloned.map((r, idx) => ({
+    ...r,
+    // Synthesize plausible created timestamps for seeds so the GET response
+    // has a real ISO 8601 value to return (real JSM never returns
+    // human-relative strings like "3h ago" — that's UI-only).
+    createdIso: offsetFromNow(now, -idx * 3600 * 1000).toISOString(),
+  }));
+}
+
+// ---- Load / save -----------------------------------------------------------
+
+async function loadStore(): Promise<StoredRequest[]> {
+  if (kvEnabled()) {
+    // `@upstash/redis` returns `null` for missing keys. Typed generically
+    // because KV stores arbitrary JSON.
+    const existing = await getRedis().get<StoredRequest[]>(STORE_KEY);
+    if (existing && Array.isArray(existing) && existing.length > 0) {
+      return existing;
+    }
+    // Seed on first access. Two SEs hitting a cold KV simultaneously could
+    // race here and both write the seed; that's fine because the seed is
+    // deterministic so whichever write lands last is equivalent.
+    const seeded = seedInitial();
+    await getRedis().set(STORE_KEY, seeded);
+    return seeded;
+  }
+  // Local/dev fallback: warm-instance globalThis.
   if (!globalThis.__jsmQueueSmokeStore) {
-    // Deep clone so mutations don't bleed into the imported seeds.
-    const cloned = JSON.parse(JSON.stringify(seedRequests)) as RequestSeed[];
-    const now = new Date();
-    const seeded: StoredRequest[] = cloned.map((r, idx) => ({
-      ...r,
-      // Synthesize plausible created timestamps for seeds so the GET response
-      // has a real ISO 8601 value to return (real JSM never returns
-      // human-relative strings like "3h ago" — that's UI-only).
-      createdIso: offsetFromNow(now, -idx * 3600 * 1000).toISOString(),
-    }));
-    globalThis.__jsmQueueSmokeStore = { requests: seeded };
+    globalThis.__jsmQueueSmokeStore = seedInitial();
   }
   return globalThis.__jsmQueueSmokeStore;
 }
 
+async function saveStore(requests: StoredRequest[]): Promise<void> {
+  if (kvEnabled()) {
+    await getRedis().set(STORE_KEY, requests);
+    return;
+  }
+  globalThis.__jsmQueueSmokeStore = requests;
+}
+
 // ---- Readers ---------------------------------------------------------------
 
-export function listRequests(): StoredRequest[] {
-  return getStore().requests;
+export async function listRequests(): Promise<StoredRequest[]> {
+  return loadStore();
 }
 
-export function getRequestByKey(key: string): StoredRequest | undefined {
-  return getStore().requests.find((r) => r.key === key);
+export async function getRequestByKey(
+  key: string,
+): Promise<StoredRequest | undefined> {
+  const all = await loadStore();
+  return all.find((r) => r.key === key);
 }
 
-export function getRequestById(id: string): StoredRequest | undefined {
-  return getStore().requests.find((r) => r.id === id);
+export async function getRequestById(
+  id: string,
+): Promise<StoredRequest | undefined> {
+  const all = await loadStore();
+  return all.find((r) => r.id === id);
 }
 
 // ---- Writers ---------------------------------------------------------------
@@ -86,17 +154,19 @@ export type CreateRequestInput = {
   requestFieldValues?: Record<string, unknown>;
 };
 
-export function createRequest(input: CreateRequestInput): StoredRequest {
-  const store = getStore();
+export async function createRequest(
+  input: CreateRequestInput,
+): Promise<StoredRequest> {
+  const all = await loadStore();
 
-  const key = nextRequestKey(store.requests);
-  const id = nextRequestId(store.requests);
+  const key = nextRequestKey(all);
+  const id = nextRequestId(all);
   const nowIso = new Date().toISOString();
 
   // Derive a reporter account. If the Elementum automation passes a known
   // seed email via raiseOnBehalfOf, reuse that account; otherwise mint a
   // fresh opaque accountId and use the email local part as the display name.
-  const reporter = reporterFromEmail(input.reporterEmail, store.requests);
+  const reporter = reporterFromEmail(input.reporterEmail, all);
 
   const stored: StoredRequest = {
     id,
@@ -121,8 +191,23 @@ export function createRequest(input: CreateRequestInput): StoredRequest {
 
   // Unshift so new records sort to the top of the queue — matches what real
   // JSM queues do by default (sort by created desc for new items).
-  store.requests.unshift(stored);
+  all.unshift(stored);
+  await saveStore(all);
   return stored;
+}
+
+/**
+ * Wipe the store and re-seed. Used by the `/api/__mock__/reset` utility
+ * endpoint so SEs can start a fresh demo without waiting for a cold start.
+ */
+export async function resetStore(): Promise<StoredRequest[]> {
+  const seeded = seedInitial();
+  if (kvEnabled()) {
+    await getRedis().set(STORE_KEY, seeded);
+  } else {
+    globalThis.__jsmQueueSmokeStore = seeded;
+  }
+  return seeded;
 }
 
 // ---- Envelope shaping ------------------------------------------------------
@@ -131,6 +216,8 @@ export function createRequest(input: CreateRequestInput): StoredRequest {
  * Shape a stored request into the response envelope returned by JSM's real
  * POST /rest/servicedeskapi/request and GET /rest/servicedeskapi/request/{key}
  * endpoints. The envelope matches PLATFORMS/jira.md § API SURFACE > JSM.
+ *
+ * Pure function over a single record — no store access, stays synchronous.
  *
  * `baseUrl` is the scheme+host of the mock deployment. We use it to build
  * `_links.web` and `_links.self` plus the `_mockViewUrl` deep-link.

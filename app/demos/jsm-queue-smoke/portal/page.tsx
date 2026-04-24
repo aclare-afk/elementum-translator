@@ -28,11 +28,11 @@ import { listRequests } from "../_lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function JsmPortalSmokePage() {
+export default async function JsmPortalSmokePage() {
   // Show the 5 most recent requests. Real JSM portals scope this to the
   // signed-in customer's own requests; we don't have a real auth layer in
   // the mock, so we show all recent as if they all belonged to the viewer.
-  const recent = listRequests().slice(0, 5);
+  const recent = (await listRequests()).slice(0, 5);
 
   return (
     <PortalShell

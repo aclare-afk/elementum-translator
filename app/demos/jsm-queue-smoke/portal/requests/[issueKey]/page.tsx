@@ -35,7 +35,7 @@ export default async function PortalRequestDetailPage({
   params: Promise<{ issueKey: string }>;
 }) {
   const { issueKey } = await params;
-  const req = getRequestByKey(issueKey);
+  const req = await getRequestByKey(issueKey);
   if (!req) notFound();
 
   const requestType = requestTypes.find((rt) => rt.id === req.requestTypeId);

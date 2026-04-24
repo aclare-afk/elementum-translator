@@ -221,7 +221,7 @@ is a gotcha lifted straight from the procurement demo export.
 | 201 Created status on POST | ✅ real | matches |
 | Error envelope `{errorMessages, errors}` | ✅ real | matches |
 | Authorization header | ✅ real | **mock accepts anything** (demo shortcut) |
-| Data persistence | ✅ real (durable) | **in-memory, resets on cold start** |
+| Data persistence | ✅ real (durable) | **Vercel KV (durable) when env vars set, globalThis (warm-only) otherwise** |
 | SLA timers advancing in real time | ✅ real | static — seeded ms values only |
 | Approval decisions actually sticking | ✅ real | UI updates locally, not persisted |
 | Webhook outbound on create | ✅ real | **not mocked** — Elementum can still poll GET |
@@ -232,19 +232,54 @@ configure [thing]." Don't paper over it.
 
 ---
 
+## Vercel KV setup (one-time)
+
+This mock needs **Vercel KV** (Upstash Redis under the hood) to persist state
+across cold starts and across serverless function instances. Without KV the
+mock still runs — it falls back to a per-function-instance in-memory store —
+but records created via `POST` won't reliably show up in the portal or queue
+UI because Vercel routes those to different function instances with separate
+memory. That's the bug the KV swap fixes.
+
+One-time setup in the Vercel dashboard:
+
+1. Go to https://vercel.com/dashboard → open the `elementum-translator` project.
+2. Click the **Storage** tab.
+3. Click **Create Database** → pick **KV** (or **Upstash for Redis** if the
+   "KV" branding is gone — same thing).
+4. Name it `elementum-translator-store` (any name works). Pick the region
+   closest to where the SEs demo from.
+5. After it's created, click **Connect Project** and select
+   `elementum-translator`. Link it to all three environments (Production,
+   Preview, Development) so PR preview URLs and your production URL both
+   get the same store.
+6. Vercel will auto-inject these env vars into every build:
+   - `KV_REST_API_URL` (or `UPSTASH_REDIS_REST_URL`)
+   - `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_TOKEN`)
+   - plus a few others that `@upstash/redis` ignores
+7. Redeploy (Vercel auto-redeploys on the connect step, but if not, click
+   **Deployments** → `...` → **Redeploy** on the latest main build).
+
+Verify it worked: `curl -sS https://elementum-translator.vercel.app/demos/jsm-queue-smoke/api/rest/servicedeskapi/request | jq '.size'`.
+Fire a `POST` (see above), wait ~2 seconds, curl the same GET again — `size`
+should go up by one. Then open the portal detail page for the new issue key
+and it'll render.
+
+Local dev without KV: just run `npm run dev` — the store falls back to
+`globalThis`. POSTs persist within the same running dev server but reset
+between restarts. Good enough for local iteration.
+
 ## Caveats (from the procurement demo gotchas)
 
-- **Cold starts reset the store.** If the Vercel function sleeps between the
-  Elementum POST and the customer clicking the returned URL, the record won't
-  be there. Mitigation: keep the demo tight (under a few minutes between
-  create and click) or move the store to Vercel KV for durability.
-- **Serverless instance splits.** If the POST lands on one function instance
-  and the page render lands on another, the in-memory store won't sync. Both
-  the API routes and the UI pages in this mock live under `app/demos/jsm-queue-smoke/`
-  so they share a bundle — usually same instance — but it's not guaranteed.
-  KV is the real fix.
+- **Cold starts still hit KV.** The store survives cold starts (that's the
+  whole point), but the first KV read on a newly-minted function instance
+  adds ~50ms of latency. Negligible for demos; worth knowing if you wire this
+  into a latency-sensitive flow.
 - **Field names are Title Case with spaces** in Elementum. Not
   snake_case, not camelCase. `"Issue Key"` yes, `"issueKey"` no, `"issue_key"` no.
 - **Always `await` the POST** inside the automation before firing the next
   task. The procurement demo had a fire-and-forget bug that silently dropped
   every PUT — same trap applies here.
+- **Store resets are manual.** Seeds re-seed only when the KV key is empty.
+  If you want a fresh demo, call `resetStore()` (from `_lib/store.ts`) or
+  delete the `jsm-queue-smoke:requests:v1` key from the Upstash console.

@@ -28,8 +28,9 @@ export async function GET(
   // Key lookup first — keys are always of the form `ITH-<n>` so we can tell
   // them from numeric ids cheaply. Fallback to id lookup.
   const record = /^[A-Z]+-\d+$/.test(issueKeyOrId)
-    ? getRequestByKey(issueKeyOrId)
-    : getRequestById(issueKeyOrId) ?? getRequestByKey(issueKeyOrId);
+    ? await getRequestByKey(issueKeyOrId)
+    : (await getRequestById(issueKeyOrId)) ??
+      (await getRequestByKey(issueKeyOrId));
 
   if (!record) {
     return NextResponse.json(

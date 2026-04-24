@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     requestFieldValues,
   };
 
-  const created = createRequest(input);
+  const created = await createRequest(input);
   const shaped = shapeRequestForServiceDeskApi(
     created,
     baseUrl(req),
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
   const start = parseInt(url.searchParams.get("start") ?? "0", 10);
   const limit = parseInt(url.searchParams.get("limit") ?? "50", 10);
 
-  let requests = listRequests();
+  let requests = await listRequests();
   if (requestTypeFilter) {
     requests = requests.filter((r) => r.requestTypeId === requestTypeFilter);
   }
