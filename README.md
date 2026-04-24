@@ -85,6 +85,10 @@ https://elementum-translator-<branch-hash>-<team>.vercel.app/demos/<slug>
 
 Merging to `main` updates the stable URL. Never `git push` directly to `main` — always branch + PR.
 
+## For new SEs joining the team
+
+Read [`ONBOARDING.md`](./ONBOARDING.md). It walks through repo access, local setup, opening the project in Cowork, and the loop for building a mock for your first customer demo. Should take ~10 minutes end-to-end.
+
 ## For SE team leads
 
 - The repo is intentionally single-product (platform translations for demos) and single-audience (Elementum SEs). Keep it that way; don't let it drift into "and also some prototypes" or "and also the real customer portals."
