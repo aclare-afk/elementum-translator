@@ -38,7 +38,7 @@ type RouteContext = { params: Promise<{ sys_id: string }> };
 
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const { sys_id } = await ctx.params;
-  const inc = getIncident(sys_id);
+  const inc = await getIncident(sys_id);
   if (!inc) return notFound();
   return NextResponse.json(
     { result: shapeIncidentForTableApi(inc, baseUrl(req)) },
@@ -66,7 +66,7 @@ async function applyUpdate(req: NextRequest, sysId: string) {
     patch[k] = typeof v === "string" ? v : String(v);
   }
 
-  const updated = updateIncident(sysId, patch);
+  const updated = await updateIncident(sysId, patch);
   if (!updated) return notFound();
   return NextResponse.json(
     { result: shapeIncidentForTableApi(updated, baseUrl(req)) },
@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   const { sys_id } = await ctx.params;
-  const ok = deleteIncident(sys_id);
+  const ok = await deleteIncident(sys_id);
   if (!ok) return notFound();
   return new NextResponse(null, { status: 204 });
 }

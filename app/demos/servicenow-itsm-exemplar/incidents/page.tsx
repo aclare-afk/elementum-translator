@@ -15,6 +15,10 @@ import { snowPriority } from "@/components/platforms/servicenow";
 import type { ListBreadcrumb } from "@/components/platforms/servicenow";
 import { IncidentsTable, type IncidentRow } from "./_IncidentsTable";
 
+// Re-read the durable store on every request so KV-backed writes show up
+// without a redeploy. Matches the JSM smoke pattern.
+export const dynamic = "force-dynamic";
+
 type SearchParams = Promise<{
   state?: string;
   priority?: string;
@@ -28,7 +32,7 @@ export default async function IncidentsList({
 }) {
   const params = await searchParams;
 
-  let incidents = listIncidents();
+  let incidents = await listIncidents();
 
   const breadcrumbs: ListBreadcrumb[] = [];
 
