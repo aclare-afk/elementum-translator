@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   const offset = parseInt(url.searchParams.get("sysparm_offset") ?? "0", 10);
   const fields = url.searchParams.get("sysparm_fields");
 
-  const all = listIncidents();
+  const all = await listIncidents();
   const filtered = applySysparmQuery<StoredIncident>(all, query);
   const paged = paginate(filtered, limit, offset);
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     patch[k] = typeof v === "string" ? v : String(v);
   }
 
-  const created = createIncident(patch);
+  const created = await createIncident(patch);
   const shaped = shapeIncidentForTableApi(created, baseUrl(req));
   return NextResponse.json({ result: shaped }, { status: 201 });
 }

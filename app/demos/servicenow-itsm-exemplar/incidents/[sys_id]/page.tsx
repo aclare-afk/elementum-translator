@@ -12,11 +12,15 @@ import {
 } from "@/components/platforms/servicenow";
 import { getIncident, getUser, getGroup } from "../../_lib/db";
 
+// Re-read the durable store on every request so KV-backed writes show up
+// without a redeploy. Matches the JSM smoke pattern.
+export const dynamic = "force-dynamic";
+
 type Params = Promise<{ sys_id: string }>;
 
 export default async function IncidentForm({ params }: { params: Params }) {
   const { sys_id } = await params;
-  const inc = getIncident(sys_id);
+  const inc = await getIncident(sys_id);
   if (!inc) notFound();
 
   const assignedTo = inc.assigned_to ? getUser(inc.assigned_to) : undefined;

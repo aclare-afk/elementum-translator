@@ -1,10 +1,21 @@
-// In-memory ServiceNow-ish store for this mock.
+// Durable ServiceNow-ish store for the ITSM exemplar mock.
 // Underscore-prefixed folder = Next.js does not route it.
 //
-// The store is intentionally a single process-global so mutations from API
-// routes are visible to SSR pages during the same Vercel function lifetime.
-// On cold starts, the store re-seeds from JSON — this matches what a fresh
-// demo should look like, and prevents leaking state between demo sessions.
+// PERSISTENCE STRATEGY (mirrors jsm-queue-smoke/_lib/store.ts):
+//   - When Vercel KV / Upstash env vars are present, incidents persist to a
+//     versioned Redis key. This is what makes the mock work on Vercel where
+//     POST and SSR reads land on different serverless function instances.
+//   - When env vars are missing (local dev), we fall back to a globalThis
+//     namespace so writes survive module re-evaluations within the same
+//     process. POSTs reset between dev-server restarts in this mode.
+//   - Users and groups are seed-only and read-only in this mock, so we keep
+//     them as in-process module caches and never write them to KV. Drops
+//     KV bandwidth and keeps the read-modify-write logic small.
+//
+// Versioned key (`...:incidents:v1`) lets us swap the seed shape later
+// without dirtying old demos that share the same Upstash database.
+
+import { Redis } from "@upstash/redis";
 
 import incidentsSeed from "../data/incidents.json";
 import usersSeed from "../data/users.json";
@@ -44,55 +55,100 @@ export type Group = {
   email: string;
 };
 
-type Store = {
-  incidents: StoredIncident[];
-  users: User[];
-  groups: Group[];
-};
+// ---- KV plumbing -----------------------------------------------------------
 
-// Keep the store on globalThis so it survives across module re-evaluations
-// (Vercel reuses warm function instances). Namespaced so multiple mocks in
-// the same deploy don't collide.
+const STORE_KEY = "servicenow-itsm-exemplar:incidents:v1";
+
+function kvEnabled(): boolean {
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  return Boolean(url && token);
+}
+
+let redisSingleton: Redis | null = null;
+function getRedis(): Redis {
+  if (redisSingleton) return redisSingleton;
+  redisSingleton = new Redis({
+    url: (process.env.UPSTASH_REDIS_REST_URL ??
+      process.env.KV_REST_API_URL)!,
+    token: (process.env.UPSTASH_REDIS_REST_TOKEN ??
+      process.env.KV_REST_API_TOKEN)!,
+  });
+  return redisSingleton;
+}
+
+// globalThis fallback so warm function instances share state across module
+// re-evaluations when KV is not configured (local dev only).
 declare global {
   // eslint-disable-next-line no-var
-  var __snowItsmExemplarStore: Store | undefined;
+  var __snowItsmExemplarIncidents: StoredIncident[] | undefined;
 }
 
-function getStore(): Store {
-  if (!globalThis.__snowItsmExemplarStore) {
-    globalThis.__snowItsmExemplarStore = {
-      incidents: JSON.parse(JSON.stringify(incidentsSeed)) as StoredIncident[],
-      users: JSON.parse(JSON.stringify(usersSeed)) as User[],
-      groups: JSON.parse(JSON.stringify(groupsSeed)) as Group[],
-    };
-  }
-  return globalThis.__snowItsmExemplarStore;
+function seedIncidents(): StoredIncident[] {
+  // Deep-clone so mutations don't bleed back into the imported JSON module.
+  return JSON.parse(JSON.stringify(incidentsSeed)) as StoredIncident[];
 }
+
+async function loadIncidents(): Promise<StoredIncident[]> {
+  if (kvEnabled()) {
+    const existing = await getRedis().get<StoredIncident[]>(STORE_KEY);
+    if (existing && Array.isArray(existing) && existing.length > 0) {
+      return existing;
+    }
+    const seeded = seedIncidents();
+    await getRedis().set(STORE_KEY, seeded);
+    return seeded;
+  }
+  if (!globalThis.__snowItsmExemplarIncidents) {
+    globalThis.__snowItsmExemplarIncidents = seedIncidents();
+  }
+  return globalThis.__snowItsmExemplarIncidents;
+}
+
+async function saveIncidents(incidents: StoredIncident[]): Promise<void> {
+  if (kvEnabled()) {
+    await getRedis().set(STORE_KEY, incidents);
+    return;
+  }
+  globalThis.__snowItsmExemplarIncidents = incidents;
+}
+
+// Users + groups are static seeds. Cache them once at module load — no KV.
+const usersCache: User[] = JSON.parse(JSON.stringify(usersSeed));
+const groupsCache: Group[] = JSON.parse(JSON.stringify(groupsSeed));
 
 // ---- Readers ---------------------------------------------------------------
 
-export function listIncidents(): StoredIncident[] {
-  return getStore().incidents;
+export async function listIncidents(): Promise<StoredIncident[]> {
+  return loadIncidents();
 }
 
-export function getIncident(sysId: string): StoredIncident | undefined {
-  return getStore().incidents.find((i) => i.sys_id === sysId);
+export async function getIncident(
+  sysId: string,
+): Promise<StoredIncident | undefined> {
+  const incidents = await loadIncidents();
+  return incidents.find((i) => i.sys_id === sysId);
 }
 
+// Sync — module-cache lookup, no KV round-trip.
 export function getUser(sysId: string): User | undefined {
-  return getStore().users.find((u) => u.sys_id === sysId);
+  return usersCache.find((u) => u.sys_id === sysId);
 }
 
 export function getGroup(sysId: string): Group | undefined {
-  return getStore().groups.find((g) => g.sys_id === sysId);
+  return groupsCache.find((g) => g.sys_id === sysId);
 }
 
 // ---- Writers ---------------------------------------------------------------
 
-export function createIncident(patch: Partial<StoredIncident>): StoredIncident {
-  const store = getStore();
+export async function createIncident(
+  patch: Partial<StoredIncident>,
+): Promise<StoredIncident> {
+  const incidents = await loadIncidents();
   const sys_id = patch.sys_id ?? genSysId();
-  const number = patch.number ?? nextIncidentNumber(store.incidents);
+  const number = patch.number ?? nextIncidentNumber(incidents);
   const now = nowSnow();
   const rec: StoredIncident = {
     sys_id,
@@ -114,34 +170,45 @@ export function createIncident(patch: Partial<StoredIncident>): StoredIncident {
     sys_created_by: patch.sys_created_by ?? "admin",
     active: patch.active ?? "true",
   };
-  store.incidents.unshift(rec);
+  incidents.unshift(rec);
+  await saveIncidents(incidents);
   return rec;
 }
 
-export function updateIncident(
+export async function updateIncident(
   sysId: string,
   patch: Partial<StoredIncident>,
-): StoredIncident | undefined {
-  const store = getStore();
-  const idx = store.incidents.findIndex((i) => i.sys_id === sysId);
+): Promise<StoredIncident | undefined> {
+  const incidents = await loadIncidents();
+  const idx = incidents.findIndex((i) => i.sys_id === sysId);
   if (idx === -1) return undefined;
   const merged: StoredIncident = {
-    ...store.incidents[idx],
+    ...incidents[idx],
     ...patch,
-    sys_id: store.incidents[idx].sys_id, // immutable
-    number: store.incidents[idx].number, // immutable
-    sys_created_on: store.incidents[idx].sys_created_on,
+    sys_id: incidents[idx].sys_id, // immutable
+    number: incidents[idx].number, // immutable
+    sys_created_on: incidents[idx].sys_created_on,
     sys_updated_on: nowSnow(),
   };
-  store.incidents[idx] = merged;
+  incidents[idx] = merged;
+  await saveIncidents(incidents);
   return merged;
 }
 
-export function deleteIncident(sysId: string): boolean {
-  const store = getStore();
-  const before = store.incidents.length;
-  store.incidents = store.incidents.filter((i) => i.sys_id !== sysId);
-  return store.incidents.length < before;
+export async function deleteIncident(sysId: string): Promise<boolean> {
+  const incidents = await loadIncidents();
+  const before = incidents.length;
+  const filtered = incidents.filter((i) => i.sys_id !== sysId);
+  if (filtered.length === before) return false;
+  await saveIncidents(filtered);
+  return true;
+}
+
+// Wipe the durable store and re-seed. Useful for `ei`-style demo resets.
+export async function resetIncidents(): Promise<StoredIncident[]> {
+  const fresh = seedIncidents();
+  await saveIncidents(fresh);
+  return fresh;
 }
 
 // ---- Utilities -------------------------------------------------------------
