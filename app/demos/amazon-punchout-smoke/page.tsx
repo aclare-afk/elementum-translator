@@ -72,9 +72,14 @@ export default function AmazonPunchoutSmokePage() {
     setCart((prev) => prev.filter((i) => i.product.asin !== asin));
   };
 
-  // Cart-return flow: POST cart to /api/punchout/cart-return, receive a fake
-  // requisition id. Real cXML would POST a form-encoded
-  // PunchOutOrderMessage; the mock trades that for JSON.
+  // Cart-return flow: POST cart to /api/punchout/cart-return, receive a real
+  // (KV-persisted) requisition id, then redirect the browser to the buyer
+  // system's PR detail page — same shape as a real punchout, where the
+  // browser ends the session by landing on the buyer system's PR. The mock's
+  // "buyer system" is the Procurement Portal at /buyer-system/...
+  //
+  // Real cXML would POST a form-encoded PunchOutOrderMessage; the mock
+  // trades that for JSON. See the route handler for fidelity notes.
   const submit = async () => {
     const res = await fetch(
       "/demos/amazon-punchout-smoke/api/punchout/cart-return",
@@ -83,6 +88,7 @@ export default function AmazonPunchoutSmokePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: SESSION_ID,
+          buyerSystem: BUYER_SYSTEM,
           items: cart.map((i) => ({
             asin: i.product.asin,
             title: i.product.title,
@@ -96,13 +102,16 @@ export default function AmazonPunchoutSmokePage() {
     if (!res.ok) {
       throw new Error(`Cart return failed: ${res.status}`);
     }
-    const data = (await res.json()) as { requisitionId: string };
-    // In a real punchout the browser would navigate to the buyer system PR
-    // page; here we just clear the cart so the demo resets cleanly.
+    const data = (await res.json()) as {
+      requisitionId: string;
+      buyerSystemUrl: string;
+    };
+    // Show the success overlay briefly (CartPanel renders this off the
+    // resolved promise), then redirect to the procurement-portal PR detail
+    // page so the demo lands somewhere clickable instead of just resetting.
     setTimeout(() => {
-      setCart([]);
-      setCartOpen(false);
-    }, 2500);
+      window.location.href = data.buyerSystemUrl;
+    }, 1800);
     return data;
   };
 

@@ -1,0 +1,104 @@
+[
+  {
+    "id": "0010488213",
+    "sessionId": "ab-punchout-sess-9c82d4f1a3b6",
+    "buyerSystem": "Elementum",
+    "submittedAt": "2026-04-21T14:22:18.000Z",
+    "status": "Approved",
+    "submitter": {
+      "name": "Priya Khanna",
+      "email": "priya.khanna@acme.example",
+      "department": "IT Operations"
+    },
+    "items": [
+      {
+        "asin": "B0FAKE0007",
+        "title": "Logitech MX Master 3S Wireless Mouse, Graphite",
+        "quantity": 4,
+        "unitPrice": 89.99,
+        "currency": "USD",
+        "lineTotal": 359.96
+      },
+      {
+        "asin": "B0FAKE0011",
+        "title": "Anker 65W USB-C GaN Charger (Type-C)",
+        "quantity": 4,
+        "unitPrice": 39.99,
+        "currency": "USD",
+        "lineTotal": 159.96
+      }
+    ],
+    "total": 519.92,
+    "currency": "USD",
+    "itemCount": 8,
+    "buyerSystemUrl": "/demos/amazon-punchout-smoke/buyer-system/requisitions/0010488213"
+  },
+  {
+    "id": "0010492057",
+    "sessionId": "ab-punchout-sess-1f8a4d3c7e2b",
+    "buyerSystem": "Elementum",
+    "submittedAt": "2026-04-22T09:47:33.000Z",
+    "status": "Pending Approval",
+    "submitter": {
+      "name": "Marcus Vandermeer",
+      "email": "marcus.v@acme.example",
+      "department": "Facilities"
+    },
+    "items": [
+      {
+        "asin": "B0FAKE0002",
+        "title": "AmazonBasics Multipurpose Copy Paper, 20 lb, Letter, 500 Sheets (10-Ream Case)",
+        "quantity": 6,
+        "unitPrice": 47.5,
+        "currency": "USD",
+        "lineTotal": 285.0
+      },
+      {
+        "asin": "B0FAKE0004",
+        "title": "Sharpie Permanent Markers, Fine Point, Assorted Colors, 24-Count",
+        "quantity": 8,
+        "unitPrice": 22.99,
+        "currency": "USD",
+        "lineTotal": 183.92
+      },
+      {
+        "asin": "B0FAKE0008",
+        "title": "Keurig K-Cup Pods Variety Pack, 72-Count",
+        "quantity": 3,
+        "unitPrice": 54.99,
+        "currency": "USD",
+        "lineTotal": 164.97
+      }
+    ],
+    "total": 633.89,
+    "currency": "USD",
+    "itemCount": 17,
+    "buyerSystemUrl": "/demos/amazon-punchout-smoke/buyer-system/requisitions/0010492057"
+  },
+  {
+    "id": "0010495812",
+    "sessionId": "ab-punchout-sess-6b3e8a2f4d91",
+    "buyerSystem": "Elementum",
+    "submittedAt": "2026-04-23T16:05:11.000Z",
+    "status": "Ordered",
+    "submitter": {
+      "name": "Jordan Liu",
+      "email": "jordan.liu@acme.example",
+      "department": "Lab Operations"
+    },
+    "items": [
+      {
+        "asin": "B0FAKE0006",
+        "title": "Kimwipes Delicate Task Wipers, Lightweight, 280-Pack",
+        "quantity": 12,
+        "unitPrice": 9.49,
+        "currency": "USD",
+        "lineTotal": 113.88
+      }
+    ],
+    "total": 113.88,
+    "currency": "USD",
+    "itemCount": 12,
+    "buyerSystemUrl": "/demos/amazon-punchout-smoke/buyer-system/requisitions/0010495812"
+  }
+]
