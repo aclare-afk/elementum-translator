@@ -278,6 +278,14 @@ export function shapeIncidentForTableApi(
 
 // Very small subset of sysparm_query. Supports `field=value` joined by `^`.
 // Enough for demo filters like `active=true^priority=1`.
+//
+// Empty-value clauses (e.g. `state=`) are treated as "user didn't filter on
+// this field" and skipped. Real ServiceNow rejects those clauses outright,
+// but Elementum api_task URL templates always interpolate every reference
+// chip — including empties — so we'd otherwise filter every row out the
+// moment any optional filter is unused. Skipping empties keeps the demo
+// agent's "list all open incidents" call (active="true", others empty)
+// working as the user expects.
 export function applySysparmQuery<T extends Record<string, unknown>>(
   rows: T[],
   query: string | null,
@@ -289,6 +297,7 @@ export function applySysparmQuery<T extends Record<string, unknown>>(
       const m = c.match(/^([a-zA-Z0-9_.]+)=(.*)$/);
       if (!m) return true;
       const [, field, value] = m;
+      if (value === "") return true; // skip empty filters
       return String(row[field] ?? "") === value;
     }),
   );
