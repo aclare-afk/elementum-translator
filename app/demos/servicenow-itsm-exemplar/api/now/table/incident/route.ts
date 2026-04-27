@@ -38,8 +38,18 @@ function errorResponse(status: number, message: string, detail: string) {
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const query = url.searchParams.get("sysparm_query");
-  const limit = parseInt(url.searchParams.get("sysparm_limit") ?? "100", 10);
-  const offset = parseInt(url.searchParams.get("sysparm_offset") ?? "0", 10);
+  // intParam: searchParams.get() returns "" when the param is present but
+  // empty (?sysparm_limit=) — `??` only fills nulls, so parseInt("") would
+  // hand us NaN and the slice would silently zero out the page. Coerce both
+  // null and empty to the default before parsing.
+  const intParam = (key: string, dflt: number): number => {
+    const raw = url.searchParams.get(key);
+    if (raw === null || raw === "") return dflt;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : dflt;
+  };
+  const limit = intParam("sysparm_limit", 100);
+  const offset = intParam("sysparm_offset", 0);
   const fields = url.searchParams.get("sysparm_fields");
 
   const all = await listIncidents();
