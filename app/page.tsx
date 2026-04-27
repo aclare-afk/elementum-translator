@@ -13,13 +13,21 @@ import Link from "next/link";
 // running back-to-back demos for different customers off the same workspace.
 const demos = [
   {
+    slug: "salesforce-case-smoke",
+    platform: "Salesforce",
+    name: "Service Cloud — Cases",
+    scenario:
+      "Lightning Service Console list view + canonical record detail at /lightning/r/Case/<Id>/view, backed by a mock OAuth token endpoint, sObject REST CRUD, and a SOQL query endpoint. 6 seed cases across all statuses + priorities + origins.",
+    status: "smoke" as const,
+    featured: true,
+  },
+  {
     slug: "jira-software-smoke",
     platform: "Jira Software",
     name: "Sprint 42 Board — Acme Web Platform",
     scenario:
       "Scrum board with 4 columns, WIP limits, 8 seeded issues across every priority + status category, epic-colored card borders, and a right-pane issue detail view.",
     status: "smoke" as const,
-    featured: true,
   },
   {
     slug: "jsm-queue-smoke",
