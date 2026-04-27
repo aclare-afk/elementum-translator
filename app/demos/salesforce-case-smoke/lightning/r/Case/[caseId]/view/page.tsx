@@ -17,7 +17,6 @@ import { getCaseById, API_VERSION } from "../../../../../_lib/store";
 import {
   LightningShell,
   RecordHighlights,
-  DetailsGrid,
   RelatedList,
   StatusBadge,
   UserChip,
@@ -381,5 +380,3 @@ function Row({
   );
 }
 
-// Re-export the section helper so the tab client can reuse it.
-export { buildDetailSections, DetailsGrid };
