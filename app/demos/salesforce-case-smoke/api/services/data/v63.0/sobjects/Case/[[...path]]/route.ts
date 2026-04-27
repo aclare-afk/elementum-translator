@@ -95,10 +95,10 @@ function parsePath(segments: string[]): ParsedPath {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
+  { params }: { params: Promise<{ path?: string[] }> },
 ) {
   const { path } = await params;
-  const parsed = parsePath(path);
+  const parsed = parsePath(path ?? []);
   const root = baseUrl(req);
 
   switch (parsed.kind) {
@@ -165,10 +165,10 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
+  { params }: { params: Promise<{ path?: string[] }> },
 ) {
   const { path } = await params;
-  const parsed = parsePath(path);
+  const parsed = parsePath(path ?? []);
 
   if (parsed.kind !== "object-root") {
     return NextResponse.json(
