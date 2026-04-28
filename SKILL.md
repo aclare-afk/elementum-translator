@@ -94,8 +94,18 @@ Hard rules:
 - **Seed data**: Fake only. Never real customer names, real phone numbers, real emails (except `@example.com`). Use obviously-fake names like "Acme Corp", "Initech", or "Wayne Enterprises."
 - **Branding**: Include a subtle `[DEMO]` banner at the top of every mock screen so nobody confuses the mock for a real instance in a screenshot.
 - **Field-name casing**: Elementum fields are Title Case with spaces (`"Issue Key"`, `"PR Number"`). Any field name you tell the SE to use in `response_fields` of their `api_task` follows the same rule. snake_case and camelCase get rejected by Elementum.
+- **Search/filter endpoints — defensive value handling (READ THIS BEFORE BUILDING ANY SEARCH ENDPOINT)**: When a search/filter endpoint accepts query parameters that come from Elementum on-demand trigger inputs interpolated into an api_task URL, treat all of the following input values as "no filter — skip this clause" instead of matching them literally:
+  - empty string `""`
+  - the literal strings `"null"` and `"undefined"`
+  - **the parameter NAME itself** (e.g. value `"state"` arriving for the `state` parameter, value `"priority"` for `priority`, value `"limit"` for `limit`)
 
-Reference implementation: `app/demos/jsm-queue-smoke/` is the canonical example of all of the above — read that mock's `_lib/store.ts`, route handlers under `api/rest/servicedeskapi/request/`, and README before building a new platform's write-APIs.
+  This last one is the surprise: Elementum's api_task chip system renders unset on-demand trigger inputs as the parameter NAME (literal string) when there's no value to substitute. The chip looks correct in the URL builder UI — it's a real reference chip — but at runtime when the calling agent doesn't pass a value for that input, the URL resolves to e.g. `?state=state^priority=priority^active=true&sysparm_limit=limit`. Without defensive handling, every "I didn't filter on that" call zeros out the result set, because the mock dutifully looks for records where `state="state"` and finds none. We chased this for an hour on ServiceNow — don't repeat the cycle.
+
+  Same applies to numeric params parsed with `parseInt` (`limit`, `offset`, etc.): treat empty/NaN/non-numeric as "use the default" via a small helper, not raw `parseInt(searchParams.get(...) ?? "0", 10)`.
+
+  Canonical implementation: `app/demos/servicenow-itsm-exemplar/_lib/db.ts` → `applySysparmQuery` (the `NO_FILTER_VALUES` set + clause-skip) and `app/demos/servicenow-itsm-exemplar/api/now/table/incident/route.ts` → `intParam` helper. Copy that pattern when you build SAP, Amazon, Workday, or any new search endpoint.
+
+Reference implementation: `app/demos/jsm-queue-smoke/` is the canonical example of write-API + store wiring — read that mock's `_lib/store.ts`, route handlers under `api/rest/servicedeskapi/request/`, and README before building a new platform's write-APIs. For search/filter endpoints, additionally read `app/demos/servicenow-itsm-exemplar/_lib/db.ts` and `api/now/table/incident/route.ts` per the rule above.
 
 ### Step 5 — Register as the featured demo
 
