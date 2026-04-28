@@ -27,20 +27,58 @@ function baseUrl(req: NextRequest): string {
   return `${proto}://${host}`;
 }
 
+// Defensive value handling per SKILL.md § "Search/filter endpoints —
+// defensive value handling". Elementum's api_task chip system renders
+// unset on-demand trigger inputs as the parameter NAME (literal string)
+// when the calling agent doesn't pass a value. So a URL templated as
+//   ?status=${status}&submitter=${submitter}&limit=${limit}
+// resolves at runtime to
+//   ?status=status&submitter=submitter&limit=limit
+// when those inputs aren't supplied. Without this guard the mock would
+// filter for records where status="status" / submitter substring "submitter"
+// and zero out results — exactly the bug we burned an hour on with
+// ServiceNow before codifying this pattern.
+const NO_FILTER_VALUES = new Set([
+  "",
+  "null",
+  "undefined",
+  // Likely chip-names for Amazon search automations:
+  "status",
+  "submitter",
+  "limit",
+  "start",
+  "top",
+]);
+
+function isNoFilter(v: string | null | undefined): boolean {
+  if (v === null || v === undefined) return true;
+  return NO_FILTER_VALUES.has(v.trim().toLowerCase());
+}
+
+// Safe integer parse: defaults when raw is null/empty/non-numeric so an
+// agent passing a chip-name string for `start`/`limit` doesn't silently
+// zero the pagination window.
+function intParam(raw: string | null, dflt: number): number {
+  if (raw === null || raw === "") return dflt;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : dflt;
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const statusFilter = url.searchParams.get("status");
-  const submitterFilter = url.searchParams.get("submitter")?.toLowerCase();
-  const start = parseInt(url.searchParams.get("start") ?? "0", 10);
-  const limit = parseInt(url.searchParams.get("limit") ?? "50", 10);
+  const statusRaw = url.searchParams.get("status");
+  const submitterRaw = url.searchParams.get("submitter");
+  const start = intParam(url.searchParams.get("start"), 0);
+  const limit = intParam(url.searchParams.get("limit"), 50);
 
   let reqs = await listRequisitions();
-  if (statusFilter) {
-    reqs = reqs.filter((r) => r.status === statusFilter);
+  if (!isNoFilter(statusRaw)) {
+    reqs = reqs.filter((r) => r.status === statusRaw);
   }
-  if (submitterFilter) {
+  if (!isNoFilter(submitterRaw)) {
+    const needle = submitterRaw!.toLowerCase();
     reqs = reqs.filter((r) =>
-      r.submitter.email.toLowerCase().includes(submitterFilter),
+      r.submitter.email.toLowerCase().includes(needle),
     );
   }
 
