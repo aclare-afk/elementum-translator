@@ -286,6 +286,22 @@ export function shapeIncidentForTableApi(
 // moment any optional filter is unused. Skipping empties keeps the demo
 // agent's "list all open incidents" call (active="true", others empty)
 // working as the user expects.
+//
+// We also treat the literal strings "null", "undefined", and the chip
+// names themselves (e.g. "state", "priority", "limit") the same as empty,
+// because agents and chip-rendering edge cases sometimes pass those when
+// they mean "don't filter". This is a demo affordance — real ServiceNow
+// would either reject or take these literally.
+const NO_FILTER_VALUES = new Set([
+  "",
+  "null",
+  "undefined",
+  "state",
+  "priority",
+  "limit",
+  "active",
+]);
+
 export function applySysparmQuery<T extends Record<string, unknown>>(
   rows: T[],
   query: string | null,
@@ -297,7 +313,7 @@ export function applySysparmQuery<T extends Record<string, unknown>>(
       const m = c.match(/^([a-zA-Z0-9_.]+)=(.*)$/);
       if (!m) return true;
       const [, field, value] = m;
-      if (value === "") return true; // skip empty filters
+      if (NO_FILTER_VALUES.has(value.trim().toLowerCase())) return true;
       return String(row[field] ?? "") === value;
     }),
   );
