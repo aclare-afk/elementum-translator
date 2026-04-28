@@ -255,6 +255,34 @@ export async function POST(
     null;
   const firstItem = items?.[0] ?? null;
 
+  // Defensive value handling per SKILL.md § "Search/filter endpoints —
+  // defensive value handling", extended to body fields. When the calling
+  // agent doesn't pass a value for an optional field, Elementum's chip
+  // system substitutes the parameter NAME as the literal value (e.g.
+  // {plant: "plant"}, {currency: "currency"}). Without this guard, a
+  // create call from an agent that skips optional fields would land bad
+  // data ("Plant: plant") on otherwise-valid PRs, or fail validation
+  // outright (currency="currency" upcased to "CURRENCY" isn't in the
+  // valid currency set). Coerce known chip-name strings back to the
+  // documented defaults.
+  const BODY_CHIP_NAMES = new Set([
+    "plant",
+    "unit",
+    "purchasinggroup",
+    "purchasing_group",
+    "requester",
+    "currency",
+    "company_code",
+    "companycode",
+    "delivery_date",
+    "deliverydate",
+  ]);
+  const cleanOptional = (raw: string | undefined): string | undefined => {
+    if (raw === undefined) return undefined;
+    if (BODY_CHIP_NAMES.has(raw.trim().toLowerCase())) return undefined;
+    return raw;
+  };
+
   // Pull from item if provided, falling back to top-level body for shorthand.
   const description = pickString(
     body.PurReqnDescription,
@@ -263,21 +291,30 @@ export async function POST(
   );
   const material = pickString(firstItem?.Material, body.material, body.Material);
   const unit =
-    pickString(firstItem?.BaseUnit, body.unit, body.BaseUnit) ?? "EA";
-  const plant = pickString(firstItem?.Plant, body.plant, body.Plant);
-  const purchasingGroup = pickString(
-    firstItem?.PurchasingGroup,
-    body.PurchasingGroup,
-    body.purchasingGroup,
-  );
+    cleanOptional(
+      pickString(firstItem?.BaseUnit, body.unit, body.BaseUnit),
+    ) ?? "EA";
+  const plant =
+    cleanOptional(pickString(firstItem?.Plant, body.plant, body.Plant)) ??
+    "US01";
+  const purchasingGroup =
+    cleanOptional(
+      pickString(
+        firstItem?.PurchasingGroup,
+        body.PurchasingGroup,
+        body.purchasingGroup,
+      ),
+    ) ?? "IT1";
   const requester =
-    pickString(body.CreatedByUser, body.requester) ?? "JDAVIS";
+    cleanOptional(pickString(body.CreatedByUser, body.requester)) ?? "JDAVIS";
   const currencyRaw =
-    pickString(
-      firstItem?.NetPriceCurrency,
-      firstItem?.DocumentCurrency,
-      body.NetPriceCurrency,
-      body.currency,
+    cleanOptional(
+      pickString(
+        firstItem?.NetPriceCurrency,
+        firstItem?.DocumentCurrency,
+        body.NetPriceCurrency,
+        body.currency,
+      ),
     ) ?? "USD";
   const statusRaw = pickString(body.status);
   const companyCode = pickString(body.CompanyCode, body.companyCode);
