@@ -12,7 +12,8 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AmazonShell,
   ProductGrid,
@@ -27,10 +28,69 @@ import { seedProducts } from "./data/products";
 const SESSION_ID = "ab-punchout-sess-7f3a2c1e9d4b5";
 const BUYER_SYSTEM = "Elementum";
 
+/**
+ * Parse a preload-items query param into CartItems. Format is a
+ * comma-separated list of `ASIN:QUANTITY` pairs:
+ *
+ *   ?items=B0FAKE0003:12,B0FAKE0001:1
+ *
+ * Looked up against `seedProducts` so the cart UI can render real titles
+ * and prices. Unknown ASINs and malformed pairs are silently skipped —
+ * an agent that hands the user a partly-bad URL is better off showing
+ * the valid items than blowing up the whole page.
+ */
+function parsePreloadItems(raw: string | null): CartItem[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((pair) => pair.trim())
+    .filter(Boolean)
+    .map((pair): CartItem | null => {
+      const [asin, qtyRaw] = pair.split(":").map((s) => s.trim());
+      if (!asin) return null;
+      const product = seedProducts.find((p) => p.asin === asin);
+      if (!product) return null;
+      const qty = Math.max(1, parseInt(qtyRaw ?? "1", 10) || 1);
+      return { product, quantity: qty };
+    })
+    .filter((i): i is CartItem => i !== null);
+}
+
+// Next.js 15 requires `useSearchParams()` to be inside a Suspense boundary
+// at the page level so the build-time prerender can bail out cleanly to
+// client rendering for the dynamic search-params-aware subtree. Wrap the
+// shopping client component in Suspense — the fallback is a brief
+// transparent placeholder since the real content hydrates fast.
 export default function AmazonPunchoutSmokePage() {
+  return (
+    <Suspense fallback={null}>
+      <AmazonPunchoutClient />
+    </Suspense>
+  );
+}
+
+function AmazonPunchoutClient() {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Hydrate cart from the `?items=` URL param on mount. Agent-handed
+  // punchout URLs land here pre-populated, mirroring how a real PunchOut
+  // session would carry context from the buyer system to the supplier.
+  // Done in useEffect (not useState init) to avoid SSR hydration mismatch
+  // — searchParams is only stable on the client.
+  useEffect(() => {
+    const itemsRaw = searchParams.get("items");
+    const preloaded = parsePreloadItems(itemsRaw);
+    if (preloaded.length > 0) {
+      setCart(preloaded);
+      setCartOpen(true);
+    }
+    // Only run once on mount; subsequent URL changes shouldn't replay
+    // a preload because the user may have already edited the cart.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Client-side product filter so the search bar in the shell feels alive.
   const visibleProducts = useMemo(() => {
