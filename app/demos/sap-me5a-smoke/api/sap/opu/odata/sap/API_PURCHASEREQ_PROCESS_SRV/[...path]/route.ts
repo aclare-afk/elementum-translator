@@ -486,7 +486,33 @@ function formatDdMmYyyy(d: Date): string {
  * handful that the SE demo flows actually hit; everything else falls
  * through and the caller sees the unfiltered list. Documented in the
  * README so SEs aren't surprised when an exotic filter is no-op.
+ *
+ * Defensive value handling per SKILL.md § "Search/filter endpoints —
+ * defensive value handling". Elementum's api_task chip system renders
+ * unset on-demand trigger inputs as the parameter NAME (literal string)
+ * when the calling agent doesn't pass a value. So a URL templated as
+ *   ?$filter=PurReqnReleaseStatus eq '${status}'
+ * resolves at runtime to
+ *   ?$filter=PurReqnReleaseStatus eq 'status'
+ * when status isn't supplied. Without this guard the mock would search
+ * for records where PurReqnReleaseStatus="status", find none, and zero
+ * out the result set — exactly the bug we burned an hour on with
+ * ServiceNow before codifying this pattern.
  */
+const NO_FILTER_VALUES = new Set([
+  "",
+  "null",
+  "undefined",
+  // Likely chip-names for SAP search automations:
+  "status",
+  "statuscode",
+  "limit",
+  "top",
+  "purchasinggroup",
+  "createdbyuser",
+  "requester",
+]);
+
 function applyFilter(prs: StoredPR[], filter: string): StoredPR[] {
   // `eq` on a few well-known fields. Tokens look like:
   //   PurReqnReleaseStatus eq '03'
@@ -499,6 +525,11 @@ function applyFilter(prs: StoredPR[], filter: string): StoredPR[] {
   const eqMatch = filter.match(/^\s*(\w+)\s+eq\s+'([^']*)'\s*$/);
   if (eqMatch) {
     const [, field, value] = eqMatch;
+    if (NO_FILTER_VALUES.has(value.trim().toLowerCase())) {
+      // Agent didn't actually filter on this field; chip resolved to its
+      // own param name or empty. Treat as "no filter" and return all rows.
+      return prs;
+    }
     return prs.filter((p) => {
       // shapePRForOData maps internal fields → OData wire names. Comparing
       // against the shaped record keeps the filter language consistent with
