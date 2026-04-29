@@ -10,6 +10,30 @@ This mirrors the JSM smoke pattern: external user-facing surface (Amazon
 storefront / JSM customer portal) plus an internal-facing surface (Procurement
 Portal / JSM agent queue), with one durable store underneath.
 
+## Submitter identity
+
+Amazon's submitter pass-through is the most involved of the five mocks because
+the punchout cart hand-off is two legs (cart-link → cart page → cart-return).
+The calling user's identity rides through all three:
+
+1. The Elementum agent calls `prepare_amazon_cart` with `submitterName`,
+   `submitterEmail`, and `submitterDepartment` (defaulting to "Procurement"
+   if the user's department isn't in session context).
+2. The cart-link endpoint bakes those values into the returned cartUrl as
+   query params (URL-encoded, alongside the items).
+3. The cart page reads them on mount and stores them as a `submitterOverride`.
+4. When the user clicks Submit Cart, the cart-return POST includes a
+   `submitter` object with name/email/department.
+5. The buyer-system requisition record stores the submitter and surfaces
+   them in the Submitter card AND the History entry on the procurement
+   portal.
+
+Without these, every requisition would be attributed to the default Sam Reeves
+seed persona. With them, your real name shows up on every PR you initiate.
+The cart-link endpoint and cart page both filter chip-name literals
+(`"submitterName"`, etc.) so a chip that didn't resolve gracefully falls back
+to the default instead of storing nonsense.
+
 ---
 
 ## Demo URLs

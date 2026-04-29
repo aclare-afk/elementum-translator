@@ -12,6 +12,21 @@ store underneath. The `/browse/<KEY>` URL shape is what every Slack-pasted
 Jira link in history looks like — that's why it's the natural target for
 `_mockViewUrl`.
 
+## Submitter identity
+
+When an Elementum agent creates an issue, it passes the calling user's
+identity through `submitterName` and `submitterEmail`, which the automation
+maps to `fields.reporter.{displayName, accountId}` on the create body. The
+mock honors that and stores both — the Atlassian-style avatar + name renders
+on the issue page's Reporter field.
+
+If the agent's session context only has the user's email (not display name),
+the skill instructions tell it to derive a reasonable name from the email's
+local part rather than skip the field. `coerceString` and `userField` in the
+route handler both filter chip-name literals (`"submitterName"`,
+`"displayName"`, `"accountId"`) so a chip that didn't resolve falls back to
+"Unknown User" instead of being stored as a fake name.
+
 ---
 
 ## Demo URLs

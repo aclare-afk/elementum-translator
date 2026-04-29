@@ -1,20 +1,32 @@
 # Team Onboarding — Elementum Translator
 
-Welcome. This doc gets you from "I was added to the repo" to "I just shipped a platform mock for my demo Friday" in about 10 minutes of one-time setup, then 2–3 minutes per mock after that.
+Welcome. This doc gets you from "I was added to the repo" to "I just shipped a platform mock for my demo Friday" in about 15 minutes of one-time setup, then 2–3 minutes per mock after that.
 
 ## Who this is for
 
-Elementum Sales Engineers who need a grounded mock of ServiceNow / Salesforce / Workday / SAP / Jira (or whatever else a customer runs) for an upcoming demo. You're not writing HCL, not standing up sandboxes, not clicking through Figma. You ask Claude, Claude generates the mock, Vercel gives you a live URL.
+Elementum Sales Engineers who need a grounded mock of ServiceNow / Salesforce / Jira / SAP / Amazon Business / Workday / whatever-else-the-customer-runs for an upcoming demo. You're not writing HCL, not standing up sandboxes, not clicking through Figma. You ask Claude, Claude generates the mock, Vercel gives you a live URL.
 
 ## What you'll have at the end
 
 - A local clone of this repo, open in Cowork
-- The ability to say "build me a ServiceNow ITSM mock for an Acme demo Friday" in Cowork and get a live preview URL in 2–3 minutes
+- The ability to say "build me a Workday HR mock for an Acme demo Friday" in Cowork and get a live preview URL in 2–3 minutes
 - A shared PR-and-preview workflow so the team reviews each other's fidelity and nobody's demo interferes with anyone else's
+
+## What's already shipped
+
+Five platforms are demo-ready end-to-end with create + search + dynamic submitter identity:
+
+- **Salesforce Service Cloud** — Cases (REST + SOQL)
+- **Jira Software** — Issues (REST API)
+- **ServiceNow ITSM** — Incidents (Table API)
+- **SAP S/4HANA** — Purchase Requisitions (OData v2)
+- **Amazon Business** — Punchout cart hand-off + buyer-system requisitions
+
+Three more (JSM, additional Salesforce surfaces, others) live as smoke-level scaffolds — read each demo's README before assuming end-to-end fidelity.
 
 ---
 
-## One-time setup (~10 minutes)
+## One-time setup (~15 minutes)
 
 ### 1. Get repo access
 
@@ -45,7 +57,7 @@ If Git prompts for a password, that's GitHub asking for a Personal Access Token 
 npm run dev
 ```
 
-Open http://localhost:3000. You should see the Elementum Translator landing page with the ServiceNow ITSM Exemplar in the list. Click into it, poke around. Hit Ctrl+C in Terminal to stop the server.
+Open http://localhost:3000. You should see the Elementum Translator landing page with the five platform mocks listed. Click into any of them, poke around. Hit Ctrl+C in Terminal to stop the server.
 
 ### 5. Open the repo in Cowork
 
@@ -59,20 +71,21 @@ Launch Cowork → "Select folder" → point at `~/Documents/GitHub/elementum-tra
 
 One sentence is enough. Examples that work:
 
-> Build me a ServiceNow ITSM mock for an Acme demo Friday. Need the incident list, the form view, and the Table API so I can hook Elementum up to read and write records.
+> Build me a Workday HR mock for an Acme demo Friday. Need the worker record UI and the REST endpoint for creating a worker.
 
-> I need a Salesforce service console mock for a demo next Tuesday — case records, Lightning-style UI, the sObject REST endpoint for cases.
+> I need a Coupa procurement mock for a demo next Tuesday — purchase requisitions, REST API, an admin queue view.
 
-> Workday HR onboarding mock — worker record page and the REST endpoint for creating workers.
+> Build me a Microsoft Dynamics 365 case management mock — record list, record page, the relevant Power Platform REST surface.
 
-Claude follows a 6-step protocol (defined in `SKILL.md`):
+Claude follows a 7-step protocol (defined in `SKILL.md`):
 
 1. **Clarify** — asks up to 4 questions if anything is ambiguous
 2. **Fidelity check** — cross-references `PLATFORMS/<platform>.md` to confirm the real platform can actually do what you're asking. If it can't, Claude pushes back and proposes an alternative.
 3. **Plan** — tells you the slug, pages, API endpoints, seed data shape. Gets your okay.
 4. **Generate** — writes all the files under `app/demos/<slug>/`
-5. **Commit** — pushes a branch and opens a PR
-6. **Handoff** — hands you the preview URL and talking points
+5. **Register** — adds the new mock to the landing page registry, marks it as the featured demo if you ask
+6. **Commit** — pushes a branch
+7. **Handoff** — hands you the PR URL, the preview URL, and a copy of the demo README's talking points
 
 ### Step 2: Grab the preview URL
 
@@ -104,9 +117,19 @@ If there's no `PLATFORMS/<platform>.md` for what you need, Claude will create on
 
 Claude uses fake customer names (Acme Corp, Initech, Wayne Enterprises) and `@example.com` emails. Don't swap in real customer data — if a screenshot of the mock leaks, that's a data hygiene problem. If you need actual customer branding for a specific 1:1 reveal demo, do a find-and-replace in your branch right before the call.
 
-### In-memory state
+### Persistent state via Vercel KV
 
-Mock APIs accept writes (POST, PATCH, DELETE), but the state is stored in the Vercel function's memory. It survives as long as the function is warm (usually ~15 minutes of activity) and resets on cold starts or redeploys. For a 30-minute demo where you create-and-read-back within a few minutes, this is fine. For a multi-day rehearsal, re-seed before the real demo.
+Every mock that mutates state (creates, updates) is backed by **Vercel KV** (Upstash Redis under the hood). Writes survive cold starts and cross-function-instance routing — so when an Elementum agent creates a record and then immediately searches for it, the search finds it. Each mock uses a unique key prefix so they coexist in one KV instance without colliding.
+
+Locally, mocks fall back to a `globalThis`-backed in-memory store when KV env vars aren't present. POSTs persist within a running dev server but reset between restarts — fine for local iteration, KV is what keeps production demos honest.
+
+### Dynamic submitter identity
+
+When an Elementum agent calls these mocks with a real user's email/name in scope, records get attributed to that user (Created By, Reporter, Contact, etc.) instead of a default seed persona. Each mock's README has a "Submitter Identity" section with the specifics, but the short version: pass `submitterEmail` and `submitterName` (or platform-specific equivalents) on every create call.
+
+### Defensive value handling
+
+Every search/filter endpoint and create body uses defensive value handling for chip-resolution edge cases — when an Elementum api_task chip resolves to its own parameter name (`status: "status"` instead of `status: "01"`), the mocks treat that as "no value" and fall back to defaults. See `SKILL.md` § "Search/filter endpoints — defensive value handling" for the canonical pattern. Apply it to every new mock from the start.
 
 ### The one rule
 
@@ -118,21 +141,24 @@ Mock APIs accept writes (POST, PATCH, DELETE), but the state is stored in the Ve
 
 **"Permission denied to aclare-afk/..."** — Your GitHub PAT is stale or cached from a different account. Make a fresh one; if macOS Keychain keeps handing the old one, open Keychain Access, search `github.com`, delete the entries, retry.
 
-**Vercel build failed** — Check the Deployments tab on vercel.com. 90% of the time it's a TypeScript error in code Claude just generated. Open the PR, ping Claude in Cowork with the error message, it'll fix and push a new commit.
+**Vercel build failed** — Check the Deployments tab on vercel.com. 90% of the time it's a TypeScript error in code Claude just generated. Open the PR, ping Claude in Cowork with the error message, it'll fix and push a new commit. The other 10% is usually a Next.js 15 quirk (e.g., `useSearchParams` requires a Suspense boundary — the Amazon punchout page hit this once).
 
 **Mock looks right but Elementum can't reach the API** — Double-check the base URL (should include `/demos/<slug>/api/...`). The API routes are nested under the demo folder; they don't live at the Vercel app root.
 
 **Cowork didn't pick up the skill** — Confirm you opened the `elementum-translator` folder itself, not a parent folder. The `SKILL.md` at the repo root is what Cowork auto-loads.
 
+**Chip in api_task resolves to its parameter name** — known Elementum quirk; the mocks already handle it defensively, but if you see `?status=status` in an execution log, that's the chip not getting populated. Check the agent's skill instructions for the corresponding tool — it should explicitly tell the agent what value to pass for that field.
+
 ---
 
 ## Reference
 
-- **[SKILL.md](./SKILL.md)** — the full 6-step protocol Claude follows, plus refusal patterns and the minimum competence bar
+- **[SKILL.md](./SKILL.md)** — the full 7-step protocol Claude follows, plus refusal patterns, the chip-resolution defensive pattern, and the minimum competence bar
 - **[CLAUDE.md](./CLAUDE.md)** — entry point for Claude sessions; read this if you want to understand how Claude is oriented on the repo
 - **[DESIGN.md](./DESIGN.md)** — why the repo is structured the way it is; read if you want to extend it
 - **[PLATFORMS/README.md](./PLATFORMS/README.md)** — format for the per-platform fidelity reference files
-- **[app/demos/servicenow-itsm-exemplar/](./app/demos/servicenow-itsm-exemplar/)** — the reference mock; every new mock should be structurally modeled after this one
+- **[app/demos/servicenow-itsm-exemplar/](./app/demos/servicenow-itsm-exemplar/)** — the reference mock for write-API + search/filter patterns
+- **[app/demos/jsm-queue-smoke/](./app/demos/jsm-queue-smoke/)** — the reference mock for KV-backed store + multi-surface UI
 
 ---
 
