@@ -49,11 +49,33 @@ function baseUrl(req: NextRequest): string {
 // defensive value handling". An agent that wires the chip but forgets to
 // pass a value would otherwise hit us with `?items=items` (the chip
 // literal) — handle it the same way we treat an empty string.
-const NO_FILTER_VALUES = new Set(["", "null", "undefined", "items"]);
+const NO_FILTER_VALUES = new Set([
+  "",
+  "null",
+  "undefined",
+  "items",
+  // Submitter chip names — same defensive pattern, applied to the new
+  // submitter pass-through fields. If the agent hasn't been told to
+  // populate these, the chip resolves to its own name; treat as missing
+  // and fall back to the demo default downstream.
+  "submittername",
+  "submitter_name",
+  "submitteremail",
+  "submitter_email",
+  "submitterdepartment",
+  "submitter_department",
+]);
 
 function isEffectivelyEmpty(v: string | null): boolean {
   if (v === null) return true;
   return NO_FILTER_VALUES.has(v.trim().toLowerCase());
+}
+
+function cleanSubmitterField(raw: string | null): string | undefined {
+  if (raw === null) return undefined;
+  if (NO_FILTER_VALUES.has(raw.trim().toLowerCase())) return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 type ParsedItem = {
@@ -101,6 +123,21 @@ const MOCK_SESSION_ID = "ab-punchout-sess-7f3a2c1e9d4b5";
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const itemsRaw = url.searchParams.get("items");
+  // Submitter pass-through. The agent populates these from the calling
+  // user's Elementum session context; they ride the cart hand-off URL all
+  // the way to the cart-return POST so the buyer-system requisition is
+  // attributed to the actual requester instead of the demo-default
+  // Sam Reeves persona. All optional — if any are missing or chip-name
+  // literals, the cart page falls back to the documented default.
+  const submitterName = cleanSubmitterField(
+    url.searchParams.get("submitterName"),
+  );
+  const submitterEmail = cleanSubmitterField(
+    url.searchParams.get("submitterEmail"),
+  );
+  const submitterDepartment = cleanSubmitterField(
+    url.searchParams.get("submitterDepartment"),
+  );
 
   if (isEffectivelyEmpty(itemsRaw)) {
     return errorResponse(
@@ -156,7 +193,13 @@ export async function GET(req: NextRequest) {
   const itemsCanonical = parsed.items
     .map((i) => `${i.asin}:${i.quantity}`)
     .join(",");
-  const cartUrl = `${baseUrl(req)}/demos/amazon-punchout-smoke?items=${encodeURIComponent(itemsCanonical)}`;
+  const cartUrlParams = new URLSearchParams({ items: itemsCanonical });
+  if (submitterName) cartUrlParams.set("submitterName", submitterName);
+  if (submitterEmail) cartUrlParams.set("submitterEmail", submitterEmail);
+  if (submitterDepartment) {
+    cartUrlParams.set("submitterDepartment", submitterDepartment);
+  }
+  const cartUrl = `${baseUrl(req)}/demos/amazon-punchout-smoke?${cartUrlParams.toString()}`;
 
   return NextResponse.json({
     cartUrl,
@@ -165,6 +208,18 @@ export async function GET(req: NextRequest) {
     subtotal,
     currency,
     itemCount,
+    // Echo the resolved submitter back so the agent can include the user's
+    // name in the chat reply ("I've prepared a cart for Alexander Clare…").
+    // Falls back to null when not provided — the cart page will use the
+    // default Sam Reeves persona at submit time.
+    submitter:
+      submitterName || submitterEmail || submitterDepartment
+        ? {
+            name: submitterName ?? null,
+            email: submitterEmail ?? null,
+            department: submitterDepartment ?? null,
+          }
+        : null,
   });
 }
 

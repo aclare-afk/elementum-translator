@@ -69,23 +69,75 @@ export default function AmazonPunchoutSmokePage() {
   );
 }
 
+/**
+ * Submitter pass-through. The agent-handed punchout URL can carry the
+ * calling user's identity through three legs: cart-link → cart page →
+ * cart-return POST. This is what makes the buyer-system requisition
+ * attribute to the actual user instead of the demo-default Sam Reeves.
+ *
+ * Chip-name literals (e.g. "submitterEmail" coming through as the value
+ * because the agent didn't populate the chip) are filtered out so the
+ * cart-return downstream falls back to the demo default cleanly.
+ */
+const SUBMITTER_CHIP_NAMES = new Set([
+  "submittername",
+  "submitter_name",
+  "submitteremail",
+  "submitter_email",
+  "submitterdepartment",
+  "submitter_department",
+]);
+
+function readSubmitterParam(raw: string | null): string | undefined {
+  if (raw === null) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed === "") return undefined;
+  if (SUBMITTER_CHIP_NAMES.has(trimmed.toLowerCase())) return undefined;
+  return trimmed;
+}
+
+type PreloadedSubmitter = {
+  name?: string;
+  email?: string;
+  department?: string;
+};
+
 function AmazonPunchoutClient() {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [submitterOverride, setSubmitterOverride] =
+    useState<PreloadedSubmitter | null>(null);
 
   // Hydrate cart from the `?items=` URL param on mount. Agent-handed
   // punchout URLs land here pre-populated, mirroring how a real PunchOut
   // session would carry context from the buyer system to the supplier.
   // Done in useEffect (not useState init) to avoid SSR hydration mismatch
   // — searchParams is only stable on the client.
+  //
+  // Same effect captures the optional submitter pass-through so the cart
+  // submit can attribute the requisition to the right user.
   useEffect(() => {
     const itemsRaw = searchParams.get("items");
     const preloaded = parsePreloadItems(itemsRaw);
     if (preloaded.length > 0) {
       setCart(preloaded);
       setCartOpen(true);
+    }
+    const submitterName = readSubmitterParam(searchParams.get("submitterName"));
+    const submitterEmail = readSubmitterParam(
+      searchParams.get("submitterEmail"),
+    );
+    const submitterDepartment = readSubmitterParam(
+      searchParams.get("submitterDepartment"),
+    );
+    if (submitterName || submitterEmail || submitterDepartment) {
+      setSubmitterOverride({
+        name: submitterName,
+        email: submitterEmail,
+        department: submitterDepartment,
+      });
     }
     // Only run once on mount; subsequent URL changes shouldn't replay
     // a preload because the user may have already edited the cart.
@@ -141,6 +193,19 @@ function AmazonPunchoutClient() {
   // Real cXML would POST a form-encoded PunchOutOrderMessage; the mock
   // trades that for JSON. See the route handler for fidelity notes.
   const submit = async () => {
+    // Build the cart-return body. If we have submitter override values
+    // from the URL hand-off, attribute the requisition to the actual
+    // requester; otherwise the cart-return endpoint defaults to the
+    // demo-default Sam Reeves persona.
+    const submitter =
+      submitterOverride && (submitterOverride.name || submitterOverride.email)
+        ? {
+            name: submitterOverride.name ?? "Unknown User",
+            email: submitterOverride.email ?? "unknown@example.com",
+            department: submitterOverride.department ?? "Procurement",
+          }
+        : undefined;
+
     const res = await fetch(
       "/demos/amazon-punchout-smoke/api/punchout/cart-return",
       {
@@ -156,6 +221,7 @@ function AmazonPunchoutClient() {
             unitPrice: i.product.businessPrice ?? i.product.price,
             currency: i.product.currency ?? "USD",
           })),
+          ...(submitter ? { submitter } : {}),
         }),
       },
     );
