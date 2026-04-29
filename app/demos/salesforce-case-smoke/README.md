@@ -13,6 +13,21 @@ page (Lightning Record Page), with one durable store underneath. The
 API points at — Slack-pasteable, browser-renderable, and survives cold
 starts.
 
+## Submitter identity
+
+When an Elementum agent creates a Case, it passes the calling user's
+identity via two body fields the route accepts under either pascalCase or
+camelCase:
+
+- `submitterName` / `ContactName` — populates Contact Name on the Case
+- `submitterEmail` / `ContactEmail` — populates Contact Email
+
+The skill instructions tell the agent to derive the display name from the
+email's local part when the full name isn't in session context, so every
+case attributes to a real user. Defensive value handling in `pickString`
+strips chip-name literals (`"submitterName"`, `"ContactName"`, etc.) so a
+chip that didn't resolve doesn't land as a fake contact name on the record.
+
 ---
 
 ## Demo URLs

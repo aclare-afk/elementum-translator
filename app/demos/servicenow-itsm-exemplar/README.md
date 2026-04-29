@@ -4,6 +4,12 @@
 
 **Who this is for**: Any SE running a demo where the customer has ServiceNow as a system of record for incidents and wants to see Elementum pull incident data, react to it, and push updates back.
 
+## Submitter identity
+
+When an Elementum agent creates an incident, it passes the calling user's email through `submitterEmail`, which the automation drops into the `sys_created_by` body field. The mock stores it on the record and surfaces it in two places — the System section's "Created By" field, and the Activity log entry ("Incident created"). Without this, every incident would be attributed to the default `"admin"` persona.
+
+The route handler's `cleanBodyValue` helper strips chip-name literals (`"sys_created_by"`, `"submitterEmail"`, etc.) so a chip that didn't resolve doesn't get stored as a fake creator.
+
 ## Quick URLs
 
 Swap `<host>` for your Vercel preview or `localhost:3000`.

@@ -11,6 +11,20 @@ durable store underneath. The `/me53n/<PR>` URL is what `_mockViewUrl` from
 the create API points at — Slack-pasteable, browser-renderable, and survives
 cold starts.
 
+## Submitter identity
+
+SAP's native field is `CreatedByUser` — an ALL-CAPS user id (e.g., `JDAVIS`,
+`MLOPEZ`). When an Elementum agent files a PR, the skill instructions tell
+it to derive that id from the calling user's session email by taking the
+local part and uppercasing it (`aclare@elementum.com` → `ACLARE`). The
+agent passes it through the `requester` body field; the mock maps that to
+`CreatedByUser` on the stored record and surfaces it in the ME53N detail
+page header.
+
+The body-side defensive `BODY_CHIP_NAMES` set strips chip-name literals
+(`"requester"`, `"plant"`, `"currency"`, etc.) so a chip that didn't
+resolve doesn't get stored as a literal field value.
+
 ---
 
 ## Demo URLs

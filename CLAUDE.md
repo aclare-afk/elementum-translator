@@ -10,11 +10,12 @@ The whole repo's value is keeping SE demos **grounded in what the real platform 
 
 ## Read these first, in order
 
-1. **`SKILL.md`** (repo root) — the operating procedure Claude follows when an SE triggers a mock build. 6-step protocol: Clarify → Fidelity check → Plan → Generate → Commit → Handoff. Non-negotiable rules about UI chrome, API shapes, seed data hygiene, and branch-based PRs.
+1. **`SKILL.md`** (repo root) — the operating procedure Claude follows when an SE triggers a mock build. 7-step protocol: Clarify → Fidelity check → Plan → Generate → Register as featured demo → Commit → Handoff. Non-negotiable rules about UI chrome, API shapes, seed data hygiene, branch-based PRs, and the chip-resolution defensive value handling pattern every search/filter endpoint must implement.
 2. **`PLATFORMS/README.md`** — the format for the per-platform fidelity reference files.
 3. **`PLATFORMS/<platform>.md`** for whichever platform the SE is asking about — the source of truth for that platform's capabilities, API shapes, visual identity, auth modes, known-impossible features, and common demo scenarios. If the file doesn't exist yet for the requested platform, create it before building anything.
 4. **`DESIGN.md`** — the repo's architectural philosophy and how the pieces fit.
-5. The exemplar at **`app/demos/servicenow-itsm-exemplar/`** — the template every new mock should be structurally modeled after.
+5. The exemplar at **`app/demos/servicenow-itsm-exemplar/`** — the template every new mock should be structurally modeled after; also the canonical example of the defensive `applySysparmQuery` pattern.
+6. **`app/demos/jsm-queue-smoke/`** — the canonical example of write-API + KV-backed store wiring.
 
 ## When an SE message comes in
 
@@ -53,7 +54,7 @@ git push -u origin demo/<slug>
 # then open a PR
 ```
 
-The branch name and commit message format are in SKILL.md § Step 5. Don't deviate.
+The branch name and commit message format are in SKILL.md § Step 6 (Commit). Don't deviate.
 
 ## Working directory context
 
@@ -68,9 +69,10 @@ The branch name and commit message format are in SKILL.md § Step 5. Don't devia
 
 ## What NOT to change without discussion
 
-- The **6-step protocol** in SKILL.md. It encodes the fidelity-first philosophy. Tweaks to wording are fine; restructuring needs an intentional decision.
+- The **7-step protocol** in SKILL.md. It encodes the fidelity-first philosophy. Tweaks to wording are fine; restructuring needs an intentional decision.
 - The **PLATFORMS/&lt;name&gt;.md required sections**. Downstream prompts depend on each section being present.
 - The **hygiene rules** (no real PII, no real customer names even in seeds, `[DEMO]` banners). These exist because a leaked demo hurts everyone.
+- The **defensive value handling pattern** for search/filter endpoints (SKILL.md § Step 4). Every new mock must implement it from the start; we burned debugging cycles re-discovering the chip-resolution edge case before codifying it.
 
 ## Tracking changes
 
