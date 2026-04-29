@@ -214,7 +214,9 @@ export async function resetIncidents(): Promise<StoredIncident[]> {
 // ---- Utilities -------------------------------------------------------------
 
 function genSysId(): string {
-  // Note: lib/utils.ts has a browser-aware version; mirror it here for Node.
+  // ServiceNow sys_ids are 32-char lowercase hex. Use Node's crypto since
+  // route handlers run server-side; the Web Crypto API would also work here
+  // but require()-ing node:crypto keeps this helper synchronous.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const crypto = require("crypto");
   return crypto.randomBytes(16).toString("hex");
