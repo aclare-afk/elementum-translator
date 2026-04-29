@@ -74,6 +74,35 @@ export async function GET(req: NextRequest) {
   );
 }
 
+// Defensive value handling per SKILL.md § "Search/filter endpoints —
+// defensive value handling", extended to body fields. When the agent
+// doesn't actually populate a chip, Elementum's chip system substitutes
+// the chip's parameter NAME as the literal value — same surprise we see
+// on URL filters and the SAP create body. Strip those values so they
+// don't get stored on the incident record.
+const BODY_CHIP_LITERALS = new Set([
+  "sys_created_by",
+  "caller_id",
+  "submittername",
+  "submitter_name",
+  "submitteremail",
+  "submitter_email",
+  "category",
+  "priority",
+  "short_description",
+  "description",
+]);
+
+function cleanBodyValue(key: string, raw: string): string | undefined {
+  const lc = raw.trim().toLowerCase();
+  if (lc === "" || lc === "null" || lc === "undefined") return undefined;
+  // Drop the value if it matches its own field name (chip-name literal).
+  if (lc === key.toLowerCase()) return undefined;
+  // Or if it matches any of the known chip-name aliases.
+  if (BODY_CHIP_LITERALS.has(lc)) return undefined;
+  return raw;
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -83,11 +112,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Coerce obvious booleans/numbers into strings so the response matches the
-  // ServiceNow convention of all-strings JSON.
+  // ServiceNow convention of all-strings JSON. Apply defensive cleaning so a
+  // chip-name literal doesn't get stored as a real field value.
   const patch: Record<string, string> = {};
   for (const [k, v] of Object.entries(body)) {
     if (v === null || v === undefined) continue;
-    patch[k] = typeof v === "string" ? v : String(v);
+    const asString = typeof v === "string" ? v : String(v);
+    const cleaned = cleanBodyValue(k, asString);
+    if (cleaned !== undefined) patch[k] = cleaned;
   }
 
   const created = await createIncident(patch);

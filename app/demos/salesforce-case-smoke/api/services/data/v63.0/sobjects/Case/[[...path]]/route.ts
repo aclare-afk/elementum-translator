@@ -346,9 +346,48 @@ export async function POST(
 
 // ---- Helpers --------------------------------------------------------------
 
+// Defensive value handling per SKILL.md § "Search/filter endpoints —
+// defensive value handling". Filter out chip-name literals like
+// "ContactName", "ContactEmail", "OwnerName" — when the agent wires a
+// chip but doesn't populate it, Elementum substitutes the chip's
+// parameter name as the literal value. Drop those so the case isn't
+// stored with bogus "ContactName" as the actual contact name.
+const CHIP_NAME_LITERALS = new Set([
+  "subject",
+  "description",
+  "status",
+  "priority",
+  "origin",
+  "reason",
+  "accountid",
+  "account_id",
+  "accountname",
+  "account_name",
+  "contactid",
+  "contact_id",
+  "contactname",
+  "contact_name",
+  "contactemail",
+  "contact_email",
+  "ownerid",
+  "owner_id",
+  "ownername",
+  "owner_name",
+  "submittername",
+  "submitter_name",
+  "submitteremail",
+  "submitter_email",
+]);
+
 function pickString(...candidates: unknown[]): string | undefined {
   for (const c of candidates) {
-    if (typeof c === "string" && c.length > 0) return c;
+    if (typeof c !== "string") continue;
+    const trimmed = c.trim();
+    if (trimmed.length === 0) continue;
+    const lc = trimmed.toLowerCase();
+    if (lc === "null" || lc === "undefined") continue;
+    if (CHIP_NAME_LITERALS.has(lc)) continue;
+    return c;
   }
   return undefined;
 }

@@ -228,9 +228,38 @@ export async function GET(req: NextRequest) {
 
 // ---- Helpers --------------------------------------------------------------
 
+// Defensive value handling per SKILL.md § "Search/filter endpoints —
+// defensive value handling". When the agent wires a chip but doesn't
+// populate it, Elementum substitutes the chip's parameter name as the
+// literal value. Drop those so we don't store "displayName" as the
+// literal reporter name on a real issue.
+const CHIP_NAME_LITERALS = new Set([
+  "summary",
+  "description",
+  "issuetype",
+  "issue_type",
+  "priority",
+  "labels",
+  "assignee",
+  "reporter",
+  "accountid",
+  "account_id",
+  "displayname",
+  "display_name",
+  "submittername",
+  "submitter_name",
+  "submitteremail",
+  "submitter_email",
+]);
+
 function coerceString(v: unknown): string | undefined {
-  if (typeof v === "string" && v.length > 0) return v;
-  return undefined;
+  if (typeof v !== "string") return undefined;
+  const trimmed = v.trim();
+  if (trimmed.length === 0) return undefined;
+  const lc = trimmed.toLowerCase();
+  if (lc === "null" || lc === "undefined") return undefined;
+  if (CHIP_NAME_LITERALS.has(lc)) return undefined;
+  return v;
 }
 
 function userField(
@@ -238,13 +267,14 @@ function userField(
 ): { accountId: string; displayName: string } | undefined {
   if (typeof v !== "object" || v === null) return undefined;
   const o = v as Record<string, unknown>;
-  const accountId =
-    typeof o.accountId === "string" ? (o.accountId as string) : undefined;
+  const accountId = coerceString(o.accountId);
+  // Filter out chip-name literals AND require non-empty after cleaning.
+  // displayName falls back to "Unknown User" only when the value is
+  // genuinely missing (not when it's a chip-name literal — those reset
+  // to the fallback too).
   if (!accountId) return undefined;
-  const displayName =
-    typeof o.displayName === "string"
-      ? (o.displayName as string)
-      : "Unknown User";
+  const displayNameRaw = coerceString(o.displayName);
+  const displayName = displayNameRaw ?? "Unknown User";
   return { accountId, displayName };
 }
 
