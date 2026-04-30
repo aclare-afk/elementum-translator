@@ -128,7 +128,7 @@ Key shape rules (these are the ones mocks get wrong most often):
 2. **Reference fields are objects** with `link` (absolute URL back into the Table API) and `value` (the sys_id of the referenced record). The `link` URL must be a valid Table API path for the referenced table.
 3. **Dates are `YYYY-MM-DD HH:mm:ss`** in UTC, no timezone offset in the string, no `T` separator, no milliseconds.
 4. **Empty strings, not nulls**, are the default for unset optional fields in most APIs. Arrays never contain `null`.
-5. **`sys_id` values are 32-char lowercase hex**, no dashes. Use `lib/utils.ts#sysId()` to generate them.
+5. **`sys_id` values are 32-char lowercase hex**, no dashes. Each mock generates them inline (e.g. `genSysId()` in the ServiceNow exemplar's `_lib/db.ts`); copy that pattern when standing up a new ServiceNow-shaped mock.
 
 Pagination:
 - Response body does not contain total or next links; pagination is surfaced via response headers:
@@ -336,7 +336,7 @@ See KNOWN-IMPOSSIBLE. Propose the create-then-search pattern, or Import Sets.
 
 Naming conventions to make mock data look right:
 
-- **`sys_id`**: 32-char lowercase hex, no dashes. Example: `46b66a40a9fe1981013806a3bd9d1a0e`. Generate with `sysId()` from `lib/utils.ts`.
+- **`sys_id`**: 32-char lowercase hex, no dashes. Example: `46b66a40a9fe1981013806a3bd9d1a0e`. Generate inline per mock — see `genSysId()` in `app/demos/servicenow-itsm-exemplar/_lib/db.ts` for the canonical pattern (uses Node `crypto.randomBytes(16)`).
 - **Incident numbers**: `INC` + 7 zero-padded digits. Example: `INC0010001`. Keep the prefix and width consistent with real ServiceNow.
 - **Change numbers**: `CHG0030001`
 - **Problem numbers**: `PRB0040001`
