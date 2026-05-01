@@ -24,7 +24,7 @@
 
 import { Redis } from "@upstash/redis";
 
-import seedRequisitions from "../data/requisitions.json";
+import seedRequisitions from "../data/requisitions";
 
 export type RequisitionStatus =
   | "Draft"
