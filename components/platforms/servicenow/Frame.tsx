@@ -11,10 +11,20 @@ import { snowColors, snowFont } from "./design-tokens";
 type FrameProps = {
   applications: SidebarApplication[];
   instance?: string;
+  /** Display name shown in the top-right user badge of the Nav. */
+  userLabel?: string;
+  /** Role/view text shown to the left of the user badge. Optional override. */
+  viewLabel?: string;
   children: React.ReactNode;
 };
 
-export function Frame({ applications, instance, children }: FrameProps) {
+export function Frame({
+  applications,
+  instance,
+  userLabel,
+  viewLabel,
+  children,
+}: FrameProps) {
   return (
     <div
       className="flex min-h-screen flex-col"
@@ -26,7 +36,7 @@ export function Frame({ applications, instance, children }: FrameProps) {
       }}
     >
       <DemoBanner />
-      <Nav instance={instance} />
+      <Nav instance={instance} userLabel={userLabel} viewLabel={viewLabel} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar applications={applications} />
         <main className="flex-1 overflow-y-auto">{children}</main>
