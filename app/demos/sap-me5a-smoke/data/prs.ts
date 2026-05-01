@@ -11,8 +11,20 @@
 //
 // None of these numbers should resemble real SAP customer data. Use obviously
 // fake but shape-correct identifiers.
+//
+// Created/Delivery dates are computed RELATIVE TO NOW at module load so the
+// demo always looks current. Each PR's `createdOn` is a few days back; the
+// `deliveryDate` is in the future to mirror real procurement lead times.
+// Re-evaluated on Vercel cold starts.
 
 import type { SapPrStatus } from "./types";
+import {
+  daysAgo,
+  daysFromNow,
+  formatSapDisplay,
+} from "../../../../lib/dates";
+
+const fmt = formatSapDisplay;
 
 export type PurchaseRequisition = {
   prNumber: string; // 10-digit
@@ -39,14 +51,14 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "HP 58A Black Toner Cartridge",
     quantity: 12,
     unit: "EA",
-    deliveryDate: "02.05.2026",
+    deliveryDate: fmt(daysFromNow(5)),
     plant: "US01",
     purchasingGroup: "IT1",
     requester: "JDAVIS",
     netPrice: 89.99,
     currency: "USD",
     status: "RELEASED",
-    createdOn: "19.04.2026",
+    createdOn: fmt(daysAgo(8)),
   },
   {
     prNumber: "0010001235",
@@ -55,14 +67,14 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "Nitrile Exam Gloves, Powder-Free, Size M",
     quantity: 40,
     unit: "BOX",
-    deliveryDate: "25.04.2026",
+    deliveryDate: fmt(daysFromNow(2)),
     plant: "US01",
     purchasingGroup: "LAB",
     requester: "MLOPEZ",
     netPrice: 18.5,
     currency: "USD",
     status: "OPEN",
-    createdOn: "21.04.2026",
+    createdOn: fmt(daysAgo(6)),
   },
   {
     prNumber: "0010001236",
@@ -71,14 +83,14 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "Multipurpose Copy Paper, Letter, 20lb, 5000 sheets",
     quantity: 8,
     unit: "CASE",
-    deliveryDate: "30.04.2026",
+    deliveryDate: fmt(daysFromNow(7)),
     plant: "US02",
     purchasingGroup: "FAC",
     requester: "RBAKER",
     netPrice: 54.0,
     currency: "USD",
     status: "IN_PROCESS",
-    createdOn: "22.04.2026",
+    createdOn: fmt(daysAgo(5)),
   },
   {
     prNumber: "0010001237",
@@ -87,14 +99,14 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "Coffee K-Cups, Assorted, 220-count",
     quantity: 6,
     unit: "PAC",
-    deliveryDate: "27.04.2026",
+    deliveryDate: fmt(daysFromNow(4)),
     plant: "US01",
     purchasingGroup: "FAC",
     requester: "JDAVIS",
     netPrice: 78.99,
     currency: "USD",
     status: "OPEN",
-    createdOn: "23.04.2026",
+    createdOn: fmt(daysAgo(4)),
   },
   {
     prNumber: "0010001238",
@@ -103,14 +115,14 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "Dell Latitude 5540 Laptop, i7/16GB/512GB",
     quantity: 2,
     unit: "EA",
-    deliveryDate: "15.05.2026",
+    deliveryDate: fmt(daysFromNow(18)),
     plant: "US01",
     purchasingGroup: "IT1",
     requester: "SCHEN",
     netPrice: 1849.0,
     currency: "USD",
     status: "BLOCKED",
-    createdOn: "18.04.2026",
+    createdOn: fmt(daysAgo(9)),
   },
   {
     prNumber: "0010001239",
@@ -119,13 +131,13 @@ export const seedPRs: PurchaseRequisition[] = [
     description: "Safety Goggles, ANSI Z87.1, Anti-Fog",
     quantity: 24,
     unit: "EA",
-    deliveryDate: "28.04.2026",
+    deliveryDate: fmt(daysFromNow(1)),
     plant: "US02",
     purchasingGroup: "LAB",
     requester: "MLOPEZ",
     netPrice: 14.25,
     currency: "USD",
     status: "CLOSED",
-    createdOn: "10.04.2026",
+    createdOn: fmt(daysAgo(17)),
   },
 ];

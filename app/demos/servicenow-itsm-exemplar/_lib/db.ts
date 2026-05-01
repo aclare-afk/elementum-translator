@@ -17,7 +17,7 @@
 
 import { Redis } from "@upstash/redis";
 
-import incidentsSeed from "../data/incidents.json";
+import incidentsSeed from "../data/incidents";
 import usersSeed from "../data/users.json";
 import groupsSeed from "../data/groups.json";
 

@@ -12,13 +12,21 @@
 //   - User.Id          — 18-char, `005` key prefix
 //   - CaseNumber       — auto-numbered 8-digit display string
 //
-// Created/Modified dates are stable strings (NOT Date.now()) so screenshots
-// are reproducible across renders.
+// Created/Modified dates are computed RELATIVE TO NOW at module load so the
+// demo always looks current — recently-touched seed cases stay recent
+// regardless of when the SE records. Re-evaluated on Vercel cold starts.
 //
 // Fidelity anchor: PLATFORMS/salesforce.md § COMMON SE SCENARIOS > Service
 // Console + § HYGIENE > Identifiers/Names.
 
 import type { SalesforceCase } from "./types";
+import {
+  daysAgo,
+  hoursAgo,
+  formatSalesforce,
+} from "../../../../lib/dates";
+
+const fmt = formatSalesforce;
 
 export const seedCases: SalesforceCase[] = [
   {
@@ -39,8 +47,8 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAA2AAJ",
     OwnerName: "Sam Rivera",
     IsClosed: false,
-    CreatedDate: "2026-04-23T13:32:11.000+0000",
-    LastModifiedDate: "2026-04-23T14:08:45.000+0000",
+    CreatedDate: fmt(hoursAgo(4)),
+    LastModifiedDate: fmt(hoursAgo(2)),
   },
   {
     Id: "5005g00000K9aP2AAJ",
@@ -60,8 +68,8 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAB1AAJ",
     OwnerName: "Lily Okafor",
     IsClosed: false,
-    CreatedDate: "2026-04-22T20:14:02.000+0000",
-    LastModifiedDate: "2026-04-23T09:11:30.000+0000",
+    CreatedDate: fmt(daysAgo(1, undefined, 20, 14)),
+    LastModifiedDate: fmt(hoursAgo(8)),
   },
   {
     Id: "5005g00000K9aP3AAJ",
@@ -81,8 +89,8 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAC1AAJ",
     OwnerName: "Devon Park",
     IsClosed: false,
-    CreatedDate: "2026-04-21T16:48:55.000+0000",
-    LastModifiedDate: "2026-04-22T11:42:09.000+0000",
+    CreatedDate: fmt(daysAgo(2, undefined, 16, 48)),
+    LastModifiedDate: fmt(daysAgo(1, undefined, 11, 42)),
   },
   {
     Id: "5005g00000K9aP4AAJ",
@@ -102,8 +110,8 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAB1AAJ",
     OwnerName: "Lily Okafor",
     IsClosed: false,
-    CreatedDate: "2026-04-23T15:02:11.000+0000",
-    LastModifiedDate: "2026-04-23T15:02:11.000+0000",
+    CreatedDate: fmt(hoursAgo(2)),
+    LastModifiedDate: fmt(hoursAgo(2)),
   },
   {
     Id: "5005g00000K9aP5AAJ",
@@ -123,8 +131,8 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAA2AAJ",
     OwnerName: "Sam Rivera",
     IsClosed: true,
-    CreatedDate: "2026-04-15T10:25:00.000+0000",
-    LastModifiedDate: "2026-04-19T14:50:22.000+0000",
+    CreatedDate: fmt(daysAgo(8, undefined, 10, 25)),
+    LastModifiedDate: fmt(daysAgo(4, undefined, 14, 50)),
   },
   {
     Id: "5005g00000K9aP6AAJ",
@@ -144,7 +152,7 @@ export const seedCases: SalesforceCase[] = [
     OwnerId: "0055g00000Q1AAC1AAJ",
     OwnerName: "Devon Park",
     IsClosed: true,
-    CreatedDate: "2026-04-12T08:14:18.000+0000",
-    LastModifiedDate: "2026-04-14T17:30:41.000+0000",
+    CreatedDate: fmt(daysAgo(11, undefined, 8, 14)),
+    LastModifiedDate: fmt(daysAgo(9, undefined, 17, 30)),
   },
 ];
