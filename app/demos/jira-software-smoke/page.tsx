@@ -6,6 +6,12 @@
 // because functions and event handlers can't cross the server→client
 // boundary.
 //
+// The Jira chrome's "logged-in user" avatar is dynamic: the most-recent
+// issue's reporter.displayName drives the userName prop, so when an
+// Elementum agent creates an issue on behalf of the calling user the chrome
+// immediately reflects that user. Falls back to the seed default when the
+// store is empty.
+//
 // Fidelity anchor: PLATFORMS/jira.md § UI PATTERNS > Jira Software > Board &
 // Issue view. Canonical share-link issue page lives at /browse/[issueKey].
 
@@ -37,5 +43,9 @@ export default async function JiraSoftwareSmokePage() {
     return rest;
   });
 
-  return <BoardClient rows={rows} />;
+  // Most-recent issue's reporter drives the chrome user. createIssue()
+  // unshifts onto the front of the array, so all[0] is the newest record.
+  const userLabel = all[0]?.reporter?.displayName ?? "Jane Davis";
+
+  return <BoardClient rows={rows} userLabel={userLabel} />;
 }

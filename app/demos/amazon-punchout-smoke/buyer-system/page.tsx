@@ -6,6 +6,12 @@
 // created via POST /api/punchout/cart-return appears here without a refresh
 // trick.
 //
+// The portal chrome's logged-in-user badge is dynamic: the most-recent
+// requisition's submitter name drives the userName prop, so when an
+// Elementum agent returns a cart on behalf of the calling user the chrome
+// immediately reflects them. Falls back to the seed default when the store
+// is empty.
+//
 // Fidelity anchor: PLATFORMS/amazon-business.md § COMMON SE SCENARIOS >
 // "Buyer punches out from PR, shops, returns cart, PR is populated". The PR
 // surface in real life is on the buyer system (SAP/Coupa/Ariba/Workday); we
@@ -33,8 +39,12 @@ export default async function BuyerSystemLandingPage() {
   );
   const totalSpend = reqs.reduce((acc, r) => acc + r.total, 0);
 
+  // Most-recent requisition's submitter drives the chrome user. createRequisition()
+  // unshifts onto the front of the array, so reqs[0] is the newest record.
+  const userName = reqs[0]?.submitter?.name ?? "Sam Reeves";
+
   return (
-    <BuyerSystemShell>
+    <BuyerSystemShell userName={userName}>
       <div className="mb-6 flex items-end justify-between">
         <div>
           <h1 className="text-[24px] font-semibold leading-tight">

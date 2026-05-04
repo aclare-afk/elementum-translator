@@ -6,6 +6,12 @@
 // `_Me5aClient.tsx` because functions and event handlers can't cross the
 // server→client boundary.
 //
+// The SAP GUI chrome's logged-in user (top-right `JDAVIS · PRD/100/EN` strip)
+// is dynamic: the most-recent PR's `requester` drives the user prop, so when
+// an Elementum agent creates a PR on behalf of the calling user the chrome
+// immediately reflects them. Falls back to the seed default when the store
+// is empty.
+//
 // Fidelity anchor: PLATFORMS/sap.md § COMMON SE SCENARIOS > "[REAL] Purchase
 // Requisition list + detail via ME5A". Drill-in route lives at
 // /demos/sap-me5a-smoke/me53n/<prNumber> — the same URL that
@@ -35,5 +41,10 @@ export default async function SapMe5aSmokePage() {
     return rest;
   });
 
-  return <Me5aClient rows={rows} />;
+  // Most-recent PR's requester drives the chrome user (SAP user IDs are
+  // stored ALL-CAPS, e.g. "JDAVIS", "ACLARE"). createPR() unshifts onto the
+  // front of the array, so all[0] is the newest record.
+  const sapUser = all[0]?.requester ?? "JDAVIS";
+
+  return <Me5aClient rows={rows} sapUser={sapUser} />;
 }

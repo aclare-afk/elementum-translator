@@ -31,6 +31,13 @@ import type { SalesforceCase, SalesforceCaseStatus } from "./data/types";
 
 type CaseListClientProps = {
   rows: SalesforceCase[];
+  /**
+   * Drives the LightningShell's logged-in-user badge. The server component
+   * (`page.tsx`) derives this from the most-recent case's ContactName so the
+   * chrome reflects whoever just had a record created on their behalf via
+   * the dynamic-submitter pattern. Falls back to a stable demo persona.
+   */
+  userLabel?: string;
 };
 
 /** The only nav tabs we render in the Service app shell. Real Service Cloud
@@ -69,7 +76,10 @@ const PRIORITY_TONE: Record<string, StatusBadgeTone> = {
   High: "error",
 };
 
-export function CaseListClient({ rows: allRows }: CaseListClientProps) {
+export function CaseListClient({
+  rows: allRows,
+  userLabel = "Sam Rivera",
+}: CaseListClientProps) {
   const router = useRouter();
   const [listView, setListView] = useState<(typeof LIST_VIEWS)[number]["id"]>(
     "all",
@@ -111,7 +121,7 @@ export function CaseListClient({ rows: allRows }: CaseListClientProps) {
       myDomain="acme"
       appName="Service Console"
       appTabs={SERVICE_APP_TABS}
-      userName="Sam Rivera"
+      userName={userLabel}
     >
       <ListHeader
         listView={listView}

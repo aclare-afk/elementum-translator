@@ -74,7 +74,12 @@ export default async function CaseViewPage({ params }: PageProps) {
       myDomain="acme"
       appName="Service Console"
       appTabs={SERVICE_APP_TABS}
-      userName="Sam Rivera"
+      // Mirror the case being viewed in the chrome's "logged-in user" badge.
+      // When an Elementum agent creates a case via the dynamic-submitter
+      // pattern, the mock URL drops the customer onto this page — and the
+      // chrome instantly reflects them as the active user. Falls back to
+      // the seed default for cases without a contact attached.
+      userName={c.ContactName ?? c.OwnerName ?? "Sam Rivera"}
     >
       <Breadcrumb caseNumber={c.CaseNumber} />
       <div className="mb-3" />
