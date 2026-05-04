@@ -2,7 +2,17 @@
 // each request type is a tile with an icon, name, and short description.
 // Clicking one opens the request form for that request type.
 //
-// See PLATFORMS/jira.md § UI PATTERNS > JSM Customer Portal.
+// `"use client"` because the button's `onClick={() => onClick?.(id)}` is an
+// inline arrow that always resolves to a function value, even when the
+// `onClick` prop is undefined. Next.js 15's RSC pass refuses to serialize a
+// function-prop on a host element rendered from a server component — the
+// portal page (`app/demos/jsm-queue-smoke/portal/page.tsx`) is a server
+// component, and rendering this tile from there 500'd the page with the
+// "Application error: a server-side exception has occurred" digest.
+// Marking the leaf as a client component is the canonical fix; the tile is
+// genuinely interactive, so this is also the right semantic.
+
+"use client";
 
 import { jiraColors, jiraFont } from "@/components/platforms/jira-shared";
 
