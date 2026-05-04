@@ -1,8 +1,13 @@
 // Seed workers for the Workday PTO smoke mock.
 //
-// Five workers covering a realistic mix of demo personas. Same fictional
+// Six workers covering a realistic mix of demo personas. Same fictional
 // universe as the Salesforce/Jira mocks (Patricia Nguyen, Marcus Chen,
-// Henry Schultz reappear) so cross-platform demos read coherently.
+// Henry Schultz reappear) so cross-platform demos read coherently. The
+// 6th worker (Alexander Clare) is the Elementum SE running these demos —
+// having him as a seed worker means his email resolves cleanly through
+// the dynamic-submitter pattern instead of falling back to the demo
+// default, so creates AND searches both find his absence requests, and
+// the chrome reflects him as the logged-in worker.
 //
 // Hygiene rules from PLATFORMS/workday.md § HYGIENE:
 //   - WID (Workday ID): 32-char lowercase hex, no dashes
@@ -87,6 +92,23 @@ export const seedWorkers: Worker[] = [
     costCenter: "CC-CS-200",
     supervisoryOrg: "Customer Success",
     hireDate: "2022-11-04",
+  },
+  {
+    // The Elementum SE running these demos. Email matches the calling user
+    // so the dynamic-submitter chain resolves directly instead of falling
+    // back to Alex Reeves. Position is Sales Engineer (his actual role) and
+    // he reports to the VP of Engineering for org-tree purposes — picked
+    // an existing manager to avoid a sixth seed user just for the reporting
+    // chain. Cost center is a new slug for the SE function.
+    wid: "ac1a3e201f4b7c92345678abcdef0112",
+    employeeId: "EMP-00045",
+    displayName: "Alexander Clare",
+    email: "aclare@elementum.com",
+    positionTitle: "Sales Engineer",
+    managerWid: "7c1eab3f7b1010102df1d2a7bdf6a76e",
+    costCenter: "CC-SE-300",
+    supervisoryOrg: "Field Engineering",
+    hireDate: "2024-06-03",
   },
 ];
 
