@@ -37,9 +37,19 @@ import {
 
 type BoardClientProps = {
   rows: BoardSeedIssue[];
+  /**
+   * Drives the JiraShell's logged-in-user avatar. The server component
+   * (`page.tsx`) derives this from the most-recent issue's reporter so the
+   * chrome reflects whoever just had a record created on their behalf via
+   * the dynamic-submitter pattern. Falls back to a stable demo persona.
+   */
+  userLabel?: string;
 };
 
-export function BoardClient({ rows }: BoardClientProps) {
+export function BoardClient({
+  rows,
+  userLabel = "Jane Davis",
+}: BoardClientProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   // Group issues by column id for the board.
@@ -64,7 +74,7 @@ export function BoardClient({ rows }: BoardClientProps) {
     <JiraShell
       tenant="acme"
       product="Jira Software"
-      userName="Jane Davis"
+      userName={userLabel}
       sidebar={
         <SoftwareSidebar
           projectName="Acme Web Platform"

@@ -31,9 +31,20 @@ import type { SapPrStatus } from "./data/types";
 
 type Me5aClientProps = {
   rows: PurchaseRequisition[];
+  /**
+   * Drives the SAP GUI top-strip user code (e.g. "JDAVIS"). The server
+   * component (`page.tsx`) derives this from the most-recent PR's requester
+   * so the chrome reflects whoever just had a record created on their
+   * behalf via the dynamic-submitter pattern. Falls back to a stable demo
+   * persona when the store is empty.
+   */
+  sapUser?: string;
 };
 
-export function Me5aClient({ rows: allRows }: Me5aClientProps) {
+export function Me5aClient({
+  rows: allRows,
+  sapUser = "JDAVIS",
+}: Me5aClientProps) {
   const router = useRouter();
 
   // Selection-screen state ------------------------------------------------
@@ -178,7 +189,7 @@ export function Me5aClient({ rows: allRows }: Me5aClientProps) {
         systemId: "PRD",
         client: "100",
         language: "EN",
-        user: "JDAVIS",
+        user: sapUser,
       }}
       status={statusMsg}
       onExecuteTxn={(code) => {
