@@ -22,6 +22,7 @@ import {
   type AbsenceBalance,
 } from "@/components/platforms/workday";
 import {
+  listAbsenceRequests,
   listAbsenceRequestsForWorker,
   listBalancesForWorker,
   listAbsenceTypes,
@@ -32,11 +33,19 @@ import { defaultViewerWid } from "../data/workers";
 export const dynamic = "force-dynamic";
 
 export default async function TimeOffWorkletPage() {
-  // For the smoke we anchor on a single viewer (Alex Reeves). The chrome
-  // separately shows the most-recent submitter — that's the layout's job.
-  // The worklet itself focuses on this worker's balances + history.
-  const viewer = getWorker(defaultViewerWid);
-  const balanceSnapshots = listBalancesForWorker(defaultViewerWid);
+  // The "viewer" — the worker whose balances and history this page shows —
+  // is dynamic: most-recent absence request's worker drives the page so
+  // when an Elementum agent submits a PTO request on behalf of the calling
+  // user, both the chrome (top-right) AND the worklet body reflect that
+  // user. Falls back to the seed default (Alex Reeves) when the store is
+  // empty, so a fresh KV deploy still renders something sensible.
+  const allRequests = await listAbsenceRequests();
+  const recentSubmitterWid = allRequests[0]?.workerWid;
+  const viewerWid = recentSubmitterWid ?? defaultViewerWid;
+  const viewer = getWorker(viewerWid) ?? getWorker(defaultViewerWid);
+  const balanceSnapshots = listBalancesForWorker(
+    viewer?.wid ?? defaultViewerWid,
+  );
   const absenceTypeMap = new Map(listAbsenceTypes().map((t) => [t.id, t]));
 
   // Map balance snapshots to display objects with the absence-type metadata.
@@ -51,7 +60,9 @@ export default async function TimeOffWorkletPage() {
     };
   });
 
-  const requests = await listAbsenceRequestsForWorker(defaultViewerWid);
+  const requests = await listAbsenceRequestsForWorker(
+    viewer?.wid ?? defaultViewerWid,
+  );
 
   return (
     <div style={{ fontFamily: workdayFont.family }}>
