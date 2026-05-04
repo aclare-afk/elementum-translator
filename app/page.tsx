@@ -69,6 +69,14 @@ const demos = [
       "Storefront with punchout session banner, 6 business-catalog products, Add-to-Cart, and Submit-to-Elementum cart return. Exercises the shared Amazon chrome.",
     status: "smoke" as const,
   },
+  {
+    slug: "workday-pto-smoke",
+    platform: "Workday",
+    name: "Time Off — PTO Request",
+    scenario:
+      "Workday tenant home with worklet grid + Time Off worklet detail (balance row + history list) + canonical absence request page. Mock Absence Management REST API for submit/list/balances plus the Common workers directory. 5 seed requests across every lifecycle state.",
+    status: "smoke" as const,
+  },
 ];
 
 type Demo = (typeof demos)[number];
