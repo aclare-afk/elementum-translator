@@ -19,7 +19,6 @@ const demos = [
     scenario:
       "Lightning Service Console list view + canonical record detail at /lightning/r/Case/<Id>/view, backed by a mock OAuth token endpoint, sObject REST CRUD, and a SOQL query endpoint. 6 seed cases across all statuses + priorities + origins.",
     status: "smoke" as const,
-    featured: true,
   },
   {
     slug: "jira-software-smoke",
@@ -76,6 +75,15 @@ const demos = [
     scenario:
       "Workday tenant home with worklet grid + Time Off worklet detail (balance row + history list) + canonical absence request page. Mock Absence Management REST API for submit/list/balances plus the Common workers directory. 5 seed requests across every lifecycle state.",
     status: "smoke" as const,
+  },
+  {
+    slug: "workday-onboarding-brennan",
+    platform: "Workday",
+    name: "HR Onboarding — Brennan Health",
+    scenario:
+      "Brennan Health System pitch fork: worker directory + worker profile lookup endpoint for the Elementum onboarding skill. Sarah Chen (RN, Med-Surg 4-East) is the new-hire default viewer; Marcus Patel MD and Linda Okafor are alternative personas covering clinical and back-office role flavors. Tenant chrome: brennan_dpt1.",
+    status: "smoke" as const,
+    featured: true,
   },
 ];
 
