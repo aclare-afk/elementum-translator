@@ -35,6 +35,7 @@ export type StoredAbsenceRequest = SeedAbsenceRequest;
 // ---- KV plumbing -----------------------------------------------------------
 
 const STORE_KEY = "workday-onboarding-brennan:absenceRequests:v1";
+const LAST_VIEWED_KEY = "workday-onboarding-brennan:lastViewedWorker:v1";
 
 function kvEnabled(): boolean {
   const url =
@@ -61,7 +62,14 @@ function getRedis(): Redis {
 declare global {
   // eslint-disable-next-line no-var
   var __workdayPtoAbsenceRequests: StoredAbsenceRequest[] | undefined;
+  // eslint-disable-next-line no-var
+  var __workdayPtoLastViewedWorker: LastViewedWorker | undefined;
 }
+
+export type LastViewedWorker = {
+  email: string;
+  viewedAt: string; // ISO 8601
+};
 
 function seedClone(): StoredAbsenceRequest[] {
   // Deep-clone so mutations don't bleed back into the imported module.
@@ -153,6 +161,35 @@ export function listBalancesForWorker(
   workerWid: string,
 ): AbsenceBalanceSnapshot[] {
   return balancesCache.filter((b) => b.workerWid === workerWid);
+}
+
+// ---- Last viewed worker (drives the dynamic chrome on profile views) -------
+
+// Records that someone just opened a worker profile. The chrome reads this
+// on every render and renders that worker as the "logged-in" identity. So
+// clicking through to /workers/<email> visibly turns Workday into "this
+// person's tenant view" — the same dynamic pattern the absence-request
+// store uses, just for profile views instead of submissions.
+export async function setLastViewedWorker(email: string): Promise<void> {
+  const trimmed = (email || "").trim().toLowerCase();
+  if (!trimmed) return;
+  const entry: LastViewedWorker = {
+    email: trimmed,
+    viewedAt: new Date().toISOString(),
+  };
+  if (kvEnabled()) {
+    await getRedis().set(LAST_VIEWED_KEY, entry);
+    return;
+  }
+  globalThis.__workdayPtoLastViewedWorker = entry;
+}
+
+export async function getLastViewedWorker(): Promise<LastViewedWorker | null> {
+  if (kvEnabled()) {
+    const v = await getRedis().get<LastViewedWorker>(LAST_VIEWED_KEY);
+    return v && v.email ? v : null;
+  }
+  return globalThis.__workdayPtoLastViewedWorker ?? null;
 }
 
 // ---- Writers --------------------------------------------------------------

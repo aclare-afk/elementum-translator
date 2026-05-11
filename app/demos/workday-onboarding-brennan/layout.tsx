@@ -1,37 +1,46 @@
-// Wraps every page in the Workday PTO mock with the Workday chrome.
+// Wraps every page in the Brennan onboarding Workday mock with the Workday chrome.
 // Hard rule from SKILL.md § Step 4: a Workday mock MUST use the shared
 // chrome from components/platforms/workday/ so it actually looks like
 // Workday.
 //
-// The chrome's "logged-in worker" badge is dynamic: it reads the most-
-// recent absence request from the durable store, finds the worker who
-// submitted it, and renders that worker's display name + position as the
-// chrome's identity. So when an Elementum agent submits a PTO request on
-// behalf of the calling user, the chrome immediately reflects that user
-// — no hardcoded persona staring back at the demo audience. Falls back
-// to the default viewer (Sarah Chen) when the store is empty.
+// CHROME IDENTITY — which worker shows in the top-bar avatar?
+//   Resolved in priority order so different demo flows light up the same
+//   "this is the active worker" affordance:
+//     1. lastViewedWorker (set when /workers/<email> renders) — when
+//        someone clicks through to a profile, the chrome reflects them.
+//        This is the dynamic-chrome moment the Elementum onboarding skill
+//        leverages: agent returns the Workday link → audience clicks it →
+//        the entire tenant visibly "becomes" that worker.
+//     2. Most-recent absence-request submitter — preserves the original
+//        workday-pto-smoke behavior so PTO-flavored demos still work.
+//     3. Default viewer (Sarah Chen) — empty-store fallback.
 
 import { WorkdayShell } from "@/components/platforms/workday";
 import {
   defaultViewerWid,
   type Worker,
 } from "./data/workers";
-import { listAbsenceRequests, getWorker } from "./_lib/store";
+import {
+  listAbsenceRequests,
+  getWorker,
+  getWorkerByEmail,
+  getLastViewedWorker,
+} from "./_lib/store";
 
 // Dynamic so the layout re-evaluates on every request — requests created
 // since the last render show up immediately as the new "current worker".
 export const dynamic = "force-dynamic";
 
-function viewerFromMostRecent(
-  recentWorker: Worker | undefined,
-): { name: string; title: string } {
+function viewerOrDefault(recentWorker: Worker | undefined): {
+  name: string;
+  title: string;
+} {
   if (recentWorker) {
     return {
       name: recentWorker.displayName,
       title: recentWorker.positionTitle,
     };
   }
-  // Default viewer — matches the seed default if the store is empty.
   const fallback = getWorker(defaultViewerWid);
   return {
     name: fallback?.displayName ?? "Sarah Chen",
@@ -44,16 +53,28 @@ export default async function WorkdayPtoLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // listAbsenceRequests() returns rows newest-first (createAbsenceRequest
-  // unshifts onto the front of the array). The head's worker becomes the
-  // "current viewer" anchor.
-  const rows = await listAbsenceRequests();
-  const recent = rows[0] ? getWorker(rows[0].workerWid) : undefined;
-  const viewer = viewerFromMostRecent(recent);
+  // Priority 1 — most recently viewed worker profile (the onboarding demo's
+  // primary signal). When the Elementum onboarding skill returns a link to
+  // /workers/<email> and the audience clicks it, that page records the
+  // view; this layout reads it and renders that worker as "logged in."
+  const lastViewed = await getLastViewedWorker();
+  const viewedWorker = lastViewed
+    ? getWorkerByEmail(lastViewed.email)
+    : undefined;
 
-  // Inbox count: number of requests in IN_PROGRESS or SUBMITTED states
-  // visible to this viewer. Real Workday inbox shows action items pending
-  // YOUR action — for the mock we just count the "in flight" requests.
+  // Priority 2 — most recent absence request submitter (preserves the
+  // original workday-pto-smoke chrome behavior for PTO flows).
+  const rows = await listAbsenceRequests();
+  const submitterWorker = rows[0]
+    ? getWorker(rows[0].workerWid)
+    : undefined;
+
+  const recent = viewedWorker ?? submitterWorker;
+  const viewer = viewerOrDefault(recent);
+
+  // Inbox count: number of requests in IN_PROGRESS or SUBMITTED states.
+  // Real Workday inbox shows action items pending YOUR action — for the
+  // mock we just count the "in flight" requests across the tenant.
   const inboxCount = rows.filter(
     (r) => r.state === "IN_PROGRESS" || r.state === "SUBMITTED",
   ).length;
